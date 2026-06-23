@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#F4F5F8" />
+<title>Day &amp; Lift</title>
+<style>
+  :root{
+    --accent-workout:#FF5A36;
+    --accent-workout-soft:#FFE7DE;
+    --accent-schedule:#4C5FD5;
+    --accent-schedule-soft:#E6E8FB;
+    --ink:#16181D;
+    --ink-soft:#6B6F76;
+    --ink-faint:#A4A8AF;
+    --bg:#F4F5F8;
+    --card:#FFFFFF;
+    --line:#EAEAEF;
+    --danger:#E0473E;
+    --radius:18px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    overscroll-behavior-y:none;
+  }
+  #app{
+    max-width:480px;
+    margin:0 auto;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+  }
+  .view{
+    display:none;
+    flex:1;
+    padding:env(safe-area-inset-top,0px) 18px 0 18px;
+    padding-bottom:96px;
+    animation:fadeIn .18s ease;
+  }
+  .view.active{display:flex;flex-direction:column;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+  .top-bar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 2px 10px 2px;
+  }
+  .top-bar h1{font-size:22px;font-weight:800;margin:0;letter-spacing:-0.02em;}
+  .week-nav{
+    background:none;border:none;font-size:20px;color:var(--ink-soft);
+    width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  }
+  .week-nav:active{background:var(--line);}
+  .today-btn{
+    border:none;background:var(--line);color:var(--ink-soft);
+    font-size:12px;font-weight:700;padding:6px 10px;border-radius:20px;
+  }
+
+  .day-strip{
+    display:flex;justify-content:space-between;gap:4px;
+    padding:4px 0 18px 0;
+  }
+  .day-cell{
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;
+    background:none;border:none;padding:0;
+  }
+  .day-cell .wd{font-size:11px;font-weight:700;color:var(--ink-faint);}
+  .day-cell .num{
+    width:34px;height:34px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;font-weight:700;color:var(--ink);
+    border:1.5px solid transparent;
+  }
+  .day-cell.today .num{border-color:var(--accent-color);}
+  .day-cell.selected .num{background:var(--accent-color);color:#fff;border-color:var(--accent-color);}
+
+  .section-label{
+    font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--ink-faint);margin:4px 2px 10px 2px;
+  }
+
+  .list{display:flex;flex-direction:column;gap:10px;flex:1;overflow-y:auto;}
+
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px;display:flex;align-items:center;gap:12px;
+  }
+  .order-circle{
+    width:30px;height:30px;border-radius:50%;background:var(--accent-color);
+    color:#fff;font-weight:800;font-size:13px;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .card-body{flex:1;min-width:0;}
+  .card-body .name{font-weight:800;font-size:15px;line-height:1.3;}
+  .card-body .sub{font-size:13px;color:var(--ink-soft);margin-top:2px;}
+  .chevron{color:var(--ink-faint);font-size:18px;font-weight:700;}
+
+  .task-card{align-items:flex-start;}
+  .checkbox{
+    width:24px;height:24px;border-radius:50%;border:2px solid var(--line);
+    flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;
+    background:var(--card);
+  }
+  .checkbox.done{background:var(--accent-color);border-color:var(--accent-color);}
+  .task-text{flex:1;font-size:15px;font-weight:600;line-height:1.3;}
+  .task-text.done{color:var(--ink-faint);text-decoration:line-through;}
+  .task-time{font-size:12px;color:var(--ink-soft);margin-top:3px;font-weight:600;}
+  .task-del{background:none;border:none;color:var(--ink-faint);font-size:18px;padding:0 2px;}
+  .task-del.confirm{color:var(--danger);font-weight:800;}
+
+  .empty-state{
+    text-align:center;color:var(--ink-faint);font-size:14px;font-weight:600;
+    padding:36px 12px;
+  }
+
+  .reorderable{touch-action:pan-y;user-select:none;}
+  .reorderable.dragging{
+    box-shadow:0 10px 26px rgba(20,20,30,.2);
+    opacity:.97;
+    z-index:5;
+    position:relative;
+  }
+
+  .add-bar{
+    display:flex;gap:8px;margin-top:12px;
+    position:sticky;bottom:0;background:var(--bg);padding-top:6px;
+  }
+  .add-bar input[type=text], .add-bar input[type=time], .add-bar input[type=number]{
+    flex:1;border:1px solid var(--line);background:var(--card);
+    border-radius:14px;padding:12px 14px;font-size:15px;color:var(--ink);
+    min-width:0;
+  }
+  .add-bar input[type=number]{text-align:center;font-weight:700;}
+  .add-bar input::placeholder{color:var(--ink-faint);}
+  .add-bar button{
+    border:none;background:var(--accent-color);color:#fff;font-weight:800;
+    font-size:14px;border-radius:14px;padding:0 18px;
+  }
+  .add-bar button:active{opacity:.8;}
+
+  .bottom-nav{
+    position:fixed;left:0;right:0;bottom:0;
+    max-width:480px;margin:0 auto;
+    background:rgba(255,255,255,.92);backdrop-filter:blur(14px);
+    border-top:1px solid var(--line);
+    display:flex;
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  .nav-btn{
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+    background:none;border:none;padding:10px 0 8px 0;color:var(--ink-faint);font-size:11.5px;font-weight:700;
+  }
+  .nav-btn svg{width:24px;height:24px;}
+  .nav-btn.active{color:var(--nav-accent);}
+
+  /* Set editor sheet */
+  .overlay{
+    position:fixed;inset:0;background:rgba(20,20,25,.4);
+    display:none;align-items:flex-end;justify-content:center;z-index:50;
+  }
+  .overlay.open{display:flex;}
+  .sheet{
+    width:100%;max-width:480px;background:var(--bg);
+    border-radius:24px 24px 0 0;padding:14px 18px;
+    padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));
+    max-height:80vh;overflow-y:auto;
+    transform:translateY(100%);transition:transform .22s ease;
+  }
+  .overlay.open .sheet{transform:none;}
+  .sheet-handle{width:36px;height:5px;background:var(--line);border-radius:3px;margin:0 auto 14px auto;}
+  .sheet-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .sheet-header h2{font-size:18px;font-weight:800;margin:0;}
+  .sheet-icon-btn{background:var(--line);border:none;width:32px;height:32px;border-radius:50%;color:var(--ink-soft);font-size:15px;}
+  .sheet-icon-btn.danger{background:#FBE3E1;color:var(--danger);}
+  .set-row{
+    display:flex;align-items:center;gap:10px;background:var(--card);
+    border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:8px;
+  }
+  .set-row .set-num{font-weight:800;font-size:13px;color:var(--ink-soft);width:46px;flex-shrink:0;}
+  .set-row input{
+    flex:1;border:none;background:none;font-size:16px;font-weight:700;color:var(--ink);
+    min-width:0;
+  }
+  .set-row .lbs{font-size:13px;color:var(--ink-faint);font-weight:700;flex-shrink:0;}
+  .set-row .rm{background:none;border:none;color:var(--ink-faint);font-size:18px;flex-shrink:0;}
+  .add-set-btn{
+    width:100%;border:1.5px dashed var(--line);background:none;color:var(--accent-workout);
+    font-weight:800;font-size:14px;border-radius:14px;padding:12px;margin-top:4px;
+  }
+  .delete-exercise-row{margin-top:18px;text-align:center;}
+  .delete-exercise-row button{background:none;border:none;color:var(--danger);font-weight:700;font-size:14px;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- SCHEDULE VIEW -->
+  <main class="view" id="view-schedule" style="--accent-color:var(--accent-schedule);">
+    <div class="top-bar">
+      <button class="week-nav" id="sched-prev">‹</button>
+      <h1>Schedule</h1>
+      <button class="week-nav" id="sched-next">›</button>
+    </div>
+    <div class="day-strip" id="sched-strip"></div>
+    <div class="section-label" id="sched-date-label">Today</div>
+    <div class="list" id="sched-list"></div>
+    <div class="add-bar">
+      <input type="text" id="sched-input" placeholder="Add a task…" />
+      <input type="time" id="sched-time" style="flex:0 0 96px;" />
+      <button id="sched-add">Add</button>
+    </div>
+  </main>
+
+  <!-- WORKOUT VIEW -->
+  <main class="view active" id="view-workout" style="--accent-color:var(--accent-workout);">
+    <div class="top-bar">
+      <button class="week-nav" id="wk-prev">‹</button>
+      <h1>Workout</h1>
+      <button class="week-nav" id="wk-next">›</button>
+    </div>
+    <div class="day-strip" id="wk-strip"></div>
+    <div class="section-label" id="wk-date-label">Today</div>
+    <div class="list" id="wk-list"></div>
+    <div class="add-bar">
+      <input type="text" id="wk-input" placeholder="Add exercise…" />
+      <input type="number" id="wk-sets-input" min="1" value="1" style="flex:0 0 60px;" />
+      <button id="wk-add">Add</button>
+    </div>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-target="schedule" style="--nav-accent:var(--accent-schedule);">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+      Schedule
+    </button>
+    <button class="nav-btn" data-target="workout" style="--nav-accent:var(--accent-workout);">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10"/></svg>
+      Workout
+    </button>
+  </nav>
+</div>
+
+<!-- SET EDITOR SHEET -->
+<div class="overlay" id="set-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h2 id="sheet-title">Exercise</h2>
+      <div style="display:flex;gap:8px;">
+        <button class="sheet-icon-btn danger" id="sheet-delete-ex">🗑</button>
+        <button class="sheet-icon-btn" id="sheet-close">✕</button>
+      </div>
+    </div>
+    <div id="sets-container"></div>
+    <button class="add-set-btn" id="add-set-btn">+ Add Set</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- date helpers ---------- */
+  function pad(n){ return n<10 ? "0"+n : ""+n; }
+  function dateKey(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+  function startOfWeek(d){
+    const day = d.getDay(); // 0 Sun .. 6 Sat
+    const diff = (day===0 ? -6 : 1-day);
+    const m = new Date(d);
+    m.setDate(d.getDate()+diff);
+    m.setHours(0,0,0,0);
+    return m;
+  }
+  function addDays(d, n){ const c = new Date(d); c.setDate(c.getDate()+n); return c; }
+  function fmtLabel(d){
+    return d.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});
+  }
+  const WD = ["M","T","W","T","F","S","S"];
+
+  /* ---------- storage ---------- */
+  function load(key){
+    try{ return JSON.parse(localStorage.getItem(key) || "{}"); }
+    catch(e){ return {}; }
+  }
+  function save(key, data){
+    try{ localStorage.setItem(key, JSON.stringify(data)); }
+    catch(e){ console.error("Storage failed", e); }
+  }
+  let workouts = load("dl_workouts");
+  let schedule = load("dl_schedule");
+
+  /* ---------- shared state ---------- */
+  const today = new Date();
+  let selectedDate = new Date(today);
+  let weekStart = startOfWeek(today);
+
+  function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+  /* ---------- long-press drag-to-reorder (shared by both lists) ---------- */
+  function makeReorderable(listEl, onReorder){
+    const LONG_PRESS_MS = 380;
+    const CANCEL_PX = 10;
+    let timer = null, dragEl = null, dragging = false, startY = 0, justDragged = false;
+
+    function clear(){
+      clearTimeout(timer); timer = null;
+      if(dragEl){ dragEl.classList.remove("dragging"); dragEl.style.transform = ""; }
+      dragEl = null; dragging = false;
+    }
+
+    function flip(el, beforeRect){
+      const afterRect = el.getBoundingClientRect();
+      const dy = beforeRect.top - afterRect.top;
+      if(Math.abs(dy) < 1) return;
+      el.style.transition = "none";
+      el.style.transform = "translateY("+dy+"px)";
+      requestAnimationFrame(function(){
+        el.style.transition = "transform .15s ease";
+        el.style.transform = "";
+      });
+    }
+
+    listEl.addEventListener("pointerdown", function(e){
+      const row = e.target.closest(".reorderable");
+      if(!row || row.parentElement !== listEl) return;
+      if(e.target.closest("button, input")) return;
+      startY = e.clientY;
+      clearTimeout(timer);
+      timer = setTimeout(function(){
+        dragEl = row; dragging = true;
+        row.classList.add("dragging");
+        row.style.transform = "scale(1.02)";
+        try{ listEl.setPointerCapture(e.pointerId); }catch(_){}
+      }, LONG_PRESS_MS);
+    });
+
+    listEl.addEventListener("pointermove", function(e){
+      if(!dragging){
+        if(timer && Math.abs(e.clientY - startY) > CANCEL_PX){ clearTimeout(timer); timer = null; }
+        return;
+      }
+      e.preventDefault();
+      const dy = e.clientY - startY;
+      dragEl.style.transform = "translateY("+dy+"px) scale(1.02)";
+      const rows = Array.from(listEl.querySelectorAll(".reorderable"));
+      const curIndex = rows.indexOf(dragEl);
+      const dragRect = dragEl.getBoundingClientRect();
+      const centerY = dragRect.top + dragRect.height/2;
+      for(let i=0;i<rows.length;i++){
+        const sib = rows[i];
+        if(sib === dragEl) continue;
+        const r = sib.getBoundingClientRect();
+        const sibCenter = r.top + r.height/2;
+        if(i < curIndex && centerY < sibCenter){
+          const before = sib.getBoundingClientRect();
+          listEl.insertBefore(dragEl, sib);
+          flip(sib, before);
+          startY = e.clientY;
+          dragEl.style.transform = "scale(1.02)";
+          break;
+        } else if(i > curIndex && centerY > sibCenter){
+          const before = sib.getBoundingClientRect();
+          listEl.insertBefore(dragEl, sib.nextSibling);
+          flip(sib, before);
+          startY = e.clientY;
+          dragEl.style.transform = "scale(1.02)";
+          break;
+        }
+      }
+    }, { passive:false });
+
+    function endDrag(){
+      clearTimeout(timer); timer = null;
+      if(dragging && dragEl){
+        const ids = Array.from(listEl.querySelectorAll(".reorderable")).map(function(r){ return r.dataset.id; });
+        clear();
+        justDragged = true;
+        onReorder(ids);
+      } else {
+        clear();
+      }
+    }
+    listEl.addEventListener("pointerup", endDrag);
+    listEl.addEventListener("pointercancel", endDrag);
+
+    listEl.addEventListener("click", function(e){
+      if(justDragged){ e.stopPropagation(); e.preventDefault(); justDragged = false; }
+    }, true);
+  }
+
+  /* ---------- day strip rendering (shared by both tabs) ---------- */
+  function renderStrip(container, onPick){
+    container.innerHTML = "";
+    for(let i=0;i<7;i++){
+      const d = addDays(weekStart, i);
+      const key = dateKey(d);
+      const cell = document.createElement("button");
+      cell.className = "day-cell";
+      if(key === dateKey(today)) cell.classList.add("today");
+      if(key === dateKey(selectedDate)) cell.classList.add("selected");
+      cell.innerHTML = '<span class="wd">'+WD[i]+'</span><span class="num">'+d.getDate()+'</span>';
+      cell.addEventListener("click", function(){
+        selectedDate = d;
+        onPick();
+      });
+      container.appendChild(cell);
+    }
+  }
+
+  function goToday(){
+    selectedDate = new Date(today);
+    weekStart = startOfWeek(today);
+  }
+
+  /* ================= WORKOUT TAB ================= */
+  const wkStripEl = document.getElementById("wk-strip");
+  const wkListEl = document.getElementById("wk-list");
+  const wkLabelEl = document.getElementById("wk-date-label");
+
+  function renderWorkout(){
+    renderStrip(wkStripEl, renderWorkout);
+    wkLabelEl.textContent = fmtLabel(selectedDate);
+    const key = dateKey(selectedDate);
+    const items = workouts[key] || [];
+    wkListEl.innerHTML = "";
+    if(items.length === 0){
+      wkListEl.innerHTML = '<div class="empty-state">No exercises yet for this day.<br>Add one below to get started.</div>';
+      return;
+    }
+    items.forEach(function(ex, idx){
+      const card = document.createElement("div");
+      card.className = "card reorderable";
+      card.dataset.id = ex.id;
+      const setsDone = ex.sets.length;
+      card.innerHTML =
+        '<div class="order-circle">'+(idx+1)+'</div>'+
+        '<div class="card-body"><div class="name">'+escapeHtml(ex.name)+'</div>'+
+        '<div class="sub">'+setsDone+' Set'+(setsDone===1?"":"s")+'</div></div>'+
+        '<div class="chevron">›</div>';
+      card.addEventListener("click", function(){ openSetEditor(key, ex.id); });
+      wkListEl.appendChild(card);
+    });
+  }
+
+  document.getElementById("wk-prev").addEventListener("click", function(){ weekStart = addDays(weekStart,-7); renderWorkout(); });
+  document.getElementById("wk-next").addEventListener("click", function(){ weekStart = addDays(weekStart, 7); renderWorkout(); });
+
+  document.getElementById("wk-add").addEventListener("click", addExercise);
+  document.getElementById("wk-input").addEventListener("keydown", function(e){ if(e.key==="Enter") addExercise(); });
+
+  function addExercise(){
+    const input = document.getElementById("wk-input");
+    const setsInput = document.getElementById("wk-sets-input");
+    const name = input.value.trim();
+    if(!name) return;
+    let count = parseInt(setsInput.value, 10);
+    if(!count || count < 1) count = 1;
+    const key = dateKey(selectedDate);
+    if(!workouts[key]) workouts[key] = [];
+    const sets = [];
+    for(let i=0;i<count;i++) sets.push({ weight: null });
+    workouts[key].push({ id: uid(), name: name, sets: sets });
+    save("dl_workouts", workouts);
+    input.value = "";
+    setsInput.value = "1";
+    renderWorkout();
+  }
+  document.getElementById("wk-sets-input").addEventListener("focus", function(){ this.select(); });
+
+  function reorderWorkout(idsInOrder){
+    const key = dateKey(selectedDate);
+    const arr = workouts[key] || [];
+    const byId = {};
+    arr.forEach(function(e){ byId[e.id] = e; });
+    workouts[key] = idsInOrder.map(function(id){ return byId[id]; }).filter(Boolean);
+    save("dl_workouts", workouts);
+    renderWorkout();
+  }
+  makeReorderable(wkListEl, reorderWorkout);
+
+  /* ---------- set editor sheet ---------- */
+  const overlay = document.getElementById("set-overlay");
+  const setsContainer = document.getElementById("sets-container");
+  const sheetTitle = document.getElementById("sheet-title");
+  let activeDayKey = null, activeExId = null;
+
+  function currentExercise(){
+    const list = workouts[activeDayKey] || [];
+    return list.find(function(e){ return e.id === activeExId; });
+  }
+
+  function openSetEditor(dayKey, exId){
+    activeDayKey = dayKey; activeExId = exId;
+    const ex = currentExercise();
+    if(!ex) return;
+    sheetTitle.textContent = ex.name;
+    renderSets();
+    overlay.classList.add("open");
+  }
+
+  function renderSets(){
+    const ex = currentExercise();
+    if(!ex) return;
+    setsContainer.innerHTML = "";
+    ex.sets.forEach(function(s, i){
+      const row = document.createElement("div");
+      row.className = "set-row";
+      row.innerHTML =
+        '<div class="set-num">Set '+(i+1)+'</div>'+
+        '<input type="number" inputmode="decimal" placeholder="0" value="'+(s.weight===null?"":s.weight)+'">'+
+        '<div class="lbs">lbs</div>'+
+        '<button class="rm">✕</button>';
+      const input = row.querySelector("input");
+      input.addEventListener("input", function(){
+        const v = input.value;
+        s.weight = v === "" ? null : parseFloat(v);
+        save("dl_workouts", workouts);
+      });
+      row.querySelector(".rm").addEventListener("click", function(){
+        ex.sets.splice(i,1);
+        save("dl_workouts", workouts);
+        renderSets();
+        renderWorkout();
+      });
+      setsContainer.appendChild(row);
+    });
+  }
+
+  document.getElementById("add-set-btn").addEventListener("click", function(){
+    const ex = currentExercise();
+    if(!ex) return;
+    ex.sets.push({ weight: null });
+    save("dl_workouts", workouts);
+    renderSets();
+    renderWorkout();
+  });
+
+  document.getElementById("sheet-close").addEventListener("click", function(){
+    overlay.classList.remove("open");
+    renderWorkout();
+  });
+  overlay.addEventListener("click", function(e){
+    if(e.target === overlay){ overlay.classList.remove("open"); renderWorkout(); }
+  });
+
+  let deleteArmed = false;
+  const deleteBtn = document.getElementById("sheet-delete-ex");
+  deleteBtn.addEventListener("click", function(){
+    if(!deleteArmed){
+      deleteArmed = true;
+      deleteBtn.textContent = "Confirm?";
+      setTimeout(function(){ deleteArmed = false; deleteBtn.textContent = "🗑"; }, 2500);
+      return;
+    }
+    const list = workouts[activeDayKey] || [];
+    const i = list.findIndex(function(e){ return e.id === activeExId; });
+    if(i > -1) list.splice(i,1);
+    save("dl_workouts", workouts);
+    deleteArmed = false; deleteBtn.textContent = "🗑";
+    overlay.classList.remove("open");
+    renderWorkout();
+  });
+
+  /* ================= SCHEDULE TAB ================= */
+  const schedStripEl = document.getElementById("sched-strip");
+  const schedListEl = document.getElementById("sched-list");
+  const schedLabelEl = document.getElementById("sched-date-label");
+
+  function renderSchedule(){
+    renderStrip(schedStripEl, renderSchedule);
+    schedLabelEl.textContent = fmtLabel(selectedDate);
+    const key = dateKey(selectedDate);
+    const items = schedule[key] || [];
+    schedListEl.innerHTML = "";
+    if(items.length === 0){
+      schedListEl.innerHTML = '<div class="empty-state">Nothing planned yet.<br>Add a task below.</div>';
+      return;
+    }
+    items.forEach(function(task){
+      const card = document.createElement("div");
+      card.className = "card task-card reorderable";
+      card.dataset.id = task.id;
+      card.innerHTML =
+        '<button class="checkbox '+(task.done?"done":"")+'">'+(task.done?"✓":"")+'</button>'+
+        '<div style="flex:1;">'+
+          '<div class="task-text '+(task.done?"done":"")+'">'+escapeHtml(task.text)+'</div>'+
+          (task.time ? '<div class="task-time">'+formatTime(task.time)+'</div>' : "")+
+        '</div>'+
+        '<button class="task-del">✕</button>';
+      card.querySelector(".checkbox").addEventListener("click", function(){
+        task.done = !task.done;
+        save("dl_schedule", schedule);
+        renderSchedule();
+      });
+      const delBtn = card.querySelector(".task-del");
+      delBtn.addEventListener("click", function(){
+        if(!delBtn.classList.contains("confirm")){
+          delBtn.classList.add("confirm");
+          delBtn.textContent = "Sure?";
+          setTimeout(function(){ delBtn.classList.remove("confirm"); delBtn.textContent="✕"; }, 2500);
+          return;
+        }
+        const list = schedule[key] || [];
+        const i = list.findIndex(function(t){ return t.id === task.id; });
+        if(i>-1) list.splice(i,1);
+        save("dl_schedule", schedule);
+        renderSchedule();
+      });
+      schedListEl.appendChild(card);
+    });
+  }
+
+  function formatTime(t){
+    const parts = t.split(":");
+    let h = parseInt(parts[0],10), m = parts[1];
+    const ampm = h>=12 ? "PM" : "AM";
+    h = h % 12; if(h===0) h = 12;
+    return h+":"+m+" "+ampm;
+  }
+
+  document.getElementById("sched-prev").addEventListener("click", function(){ weekStart = addDays(weekStart,-7); renderSchedule(); });
+  document.getElementById("sched-next").addEventListener("click", function(){ weekStart = addDays(weekStart, 7); renderSchedule(); });
+
+  document.getElementById("sched-add").addEventListener("click", addTask);
+  document.getElementById("sched-input").addEventListener("keydown", function(e){ if(e.key==="Enter") addTask(); });
+
+  function addTask(){
+    const textInput = document.getElementById("sched-input");
+    const timeInput = document.getElementById("sched-time");
+    const text = textInput.value.trim();
+    if(!text) return;
+    const key = dateKey(selectedDate);
+    if(!schedule[key]) schedule[key] = [];
+    schedule[key].push({ id: uid(), text: text, time: timeInput.value || null, done: false });
+    save("dl_schedule", schedule);
+    textInput.value = ""; timeInput.value = "";
+    renderSchedule();
+  }
+
+  function reorderSchedule(idsInOrder){
+    const key = dateKey(selectedDate);
+    const arr = schedule[key] || [];
+    const byId = {};
+    arr.forEach(function(t){ byId[t.id] = t; });
+    schedule[key] = idsInOrder.map(function(id){ return byId[id]; }).filter(Boolean);
+    save("dl_schedule", schedule);
+    renderSchedule();
+  }
+  makeReorderable(schedListEl, reorderSchedule);
+
+  /* ---------- nav switching ---------- */
+  const navBtns = document.querySelectorAll(".nav-btn");
+  const views = { schedule: document.getElementById("view-schedule"), workout: document.getElementById("view-workout") };
+  navBtns.forEach(function(btn){
+    btn.addEventListener("click", function(){
+      navBtns.forEach(function(b){ b.classList.remove("active"); });
+      btn.classList.add("active");
+      Object.keys(views).forEach(function(k){ views[k].classList.remove("active"); });
+      views[btn.dataset.target].classList.add("active");
+    });
+  });
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, function(c){
+      return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c];
+    });
+  }
+
+  /* ---------- init ---------- */
+  goToday();
+  renderSchedule();
+  renderWorkout();
+})();
+</script>
+</body>
+</html>
