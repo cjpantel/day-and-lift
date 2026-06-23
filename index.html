@@ -113,6 +113,7 @@
   .task-text{flex:1;font-size:15px;font-weight:600;line-height:1.3;}
   .task-text.done{color:var(--ink-faint);text-decoration:line-through;}
   .task-time{font-size:12px;color:var(--ink-soft);margin-top:3px;font-weight:600;}
+  .task-meta{font-size:12px;color:var(--ink-faint);margin-top:3px;font-weight:600;}
   .task-del{background:none;border:none;color:var(--ink-faint);font-size:18px;padding:0 2px;}
   .task-del.confirm{color:var(--danger);font-weight:800;}
 
@@ -133,12 +134,16 @@
     display:flex;gap:8px;margin-top:12px;
     position:sticky;bottom:0;background:var(--bg);padding-top:6px;
   }
-  .add-bar input[type=text], .add-bar input[type=time], .add-bar input[type=number]{
+  .add-bar input[type=text]{
     flex:1;border:1px solid var(--line);background:var(--card);
     border-radius:14px;padding:12px 14px;font-size:15px;color:var(--ink);
     min-width:0;
   }
-  .add-bar input[type=number]{text-align:center;font-weight:700;}
+  .add-bar select{
+    border:1px solid var(--line);background:var(--card);
+    border-radius:14px;padding:12px 8px;font-size:14px;color:var(--ink);font-weight:700;
+    -webkit-appearance:none;appearance:none;text-align:center;
+  }
   .add-bar input::placeholder{color:var(--ink-faint);}
   .add-bar button{
     border:none;background:var(--accent-color);color:#fff;font-weight:800;
@@ -181,20 +186,48 @@
   .sheet-icon-btn{background:var(--line);border:none;width:32px;height:32px;border-radius:50%;color:var(--ink-soft);font-size:15px;}
   .sheet-icon-btn.danger{background:#FBE3E1;color:var(--danger);}
   .set-row{
-    display:flex;align-items:center;gap:10px;background:var(--card);
-    border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:8px;
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:10px 12px;margin-bottom:8px;
   }
-  .set-row .set-num{font-weight:800;font-size:13px;color:var(--ink-soft);width:46px;flex-shrink:0;}
-  .set-row input{
-    flex:1;border:none;background:none;font-size:16px;font-weight:700;color:var(--ink);
-    min-width:0;
+  .set-row-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .set-row-top .set-num{font-weight:800;font-size:13px;color:var(--ink-soft);}
+  .set-row-top .rm{background:none;border:none;color:var(--ink-faint);font-size:17px;}
+  .set-fields{display:flex;gap:10px;}
+  .field-group{
+    flex:1;display:flex;align-items:center;gap:5px;
+    background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;
   }
-  .set-row .lbs{font-size:13px;color:var(--ink-faint);font-weight:700;flex-shrink:0;}
-  .set-row .rm{background:none;border:none;color:var(--ink-faint);font-size:18px;flex-shrink:0;}
+  .field-group input{
+    width:30px;flex:0 0 auto;border:none;background:none;font-size:15px;font-weight:700;
+    color:var(--ink);text-align:center;padding:0;
+  }
+  .field-group .sep{color:var(--ink-faint);font-weight:700;}
+  .field-group .unit{font-size:11px;color:var(--ink-faint);font-weight:700;margin-left:auto;}
   .add-set-btn{
     width:100%;border:1.5px dashed var(--line);background:none;color:var(--accent-workout);
     font-weight:800;font-size:14px;border-radius:14px;padding:12px;margin-top:4px;
   }
+  .add-photo-btn{
+    width:100%;border:1.5px dashed var(--line);background:none;color:var(--accent-schedule);
+    font-weight:800;font-size:14px;border-radius:14px;padding:12px;margin-top:4px;
+  }
+  .task-notes{
+    width:100%;min-height:90px;border:1px solid var(--line);background:var(--card);
+    border-radius:14px;padding:12px 14px;font-size:15px;color:var(--ink);
+    font-family:inherit;resize:vertical;margin-bottom:14px;
+  }
+  .photo-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
+  .photo-thumb{
+    position:relative;width:84px;height:84px;border-radius:12px;overflow:hidden;
+    border:1px solid var(--line);
+  }
+  .photo-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .photo-thumb .photo-rm{
+    position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;
+    background:rgba(0,0,0,.55);color:#fff;border:none;font-size:12px;line-height:1;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .photo-error{color:var(--danger);font-size:12px;font-weight:700;margin-top:4px;min-height:14px;}
   .delete-exercise-row{margin-top:18px;text-align:center;}
   .delete-exercise-row button{background:none;border:none;color:var(--danger);font-weight:700;font-size:14px;}
 </style>
@@ -214,7 +247,7 @@
     <div class="list" id="sched-list"></div>
     <div class="add-bar">
       <input type="text" id="sched-input" placeholder="Add a task…" />
-      <input type="time" id="sched-time" style="flex:0 0 96px;" />
+      <select id="sched-time" style="flex:0 0 118px;"></select>
       <button id="sched-add">Add</button>
     </div>
   </main>
@@ -231,7 +264,13 @@
     <div class="list" id="wk-list"></div>
     <div class="add-bar">
       <input type="text" id="wk-input" placeholder="Add exercise…" />
-      <input type="number" id="wk-sets-input" min="1" value="1" style="flex:0 0 60px;" />
+      <select id="wk-sets-input" style="flex:0 0 64px;">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+      </select>
       <button id="wk-add">Add</button>
     </div>
   </main>
@@ -264,6 +303,22 @@
   </div>
 </div>
 
+<!-- TASK DETAIL SHEET -->
+<div class="overlay" id="task-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h2 id="task-sheet-title">Task</h2>
+      <button class="sheet-icon-btn" id="task-sheet-close">✕</button>
+    </div>
+    <textarea id="task-notes" class="task-notes" placeholder="Add notes or useful info…"></textarea>
+    <div class="photo-grid" id="task-photo-grid"></div>
+    <button class="add-photo-btn" id="task-add-photo-btn">+ Add Photo</button>
+    <input type="file" accept="image/*" id="task-photo-input" multiple style="display:none;" />
+    <div class="photo-error" id="task-photo-error"></div>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -291,8 +346,8 @@
     catch(e){ return {}; }
   }
   function save(key, data){
-    try{ localStorage.setItem(key, JSON.stringify(data)); }
-    catch(e){ console.error("Storage failed", e); }
+    try{ localStorage.setItem(key, JSON.stringify(data)); return true; }
+    catch(e){ console.error("Storage failed", e); return false; }
   }
   let workouts = load("dl_workouts");
   let schedule = load("dl_schedule");
@@ -463,17 +518,17 @@
     if(!name) return;
     let count = parseInt(setsInput.value, 10);
     if(!count || count < 1) count = 1;
+    if(count > 5) count = 5;
     const key = dateKey(selectedDate);
     if(!workouts[key]) workouts[key] = [];
     const sets = [];
-    for(let i=0;i<count;i++) sets.push({ weight: null });
+    for(let i=0;i<count;i++) sets.push({ weight: null, repsMin: null, repsMax: null });
     workouts[key].push({ id: uid(), name: name, sets: sets });
     save("dl_workouts", workouts);
     input.value = "";
     setsInput.value = "1";
     renderWorkout();
   }
-  document.getElementById("wk-sets-input").addEventListener("focus", function(){ this.select(); });
 
   function reorderWorkout(idsInOrder){
     const key = dateKey(selectedDate);
@@ -514,16 +569,51 @@
       const row = document.createElement("div");
       row.className = "set-row";
       row.innerHTML =
-        '<div class="set-num">Set '+(i+1)+'</div>'+
-        '<input type="number" inputmode="decimal" placeholder="0" value="'+(s.weight===null?"":s.weight)+'">'+
-        '<div class="lbs">lbs</div>'+
-        '<button class="rm">✕</button>';
-      const input = row.querySelector("input");
-      input.addEventListener("input", function(){
-        const v = input.value;
-        s.weight = v === "" ? null : parseFloat(v);
+        '<div class="set-row-top"><div class="set-num">Set '+(i+1)+'</div><button class="rm">✕</button></div>'+
+        '<div class="set-fields">'+
+          '<div class="field-group">'+
+            '<input type="number" inputmode="decimal" class="w-input" placeholder="0" value="'+(s.weight==null?"":s.weight)+'">'+
+            '<span class="unit">lbs</span>'+
+          '</div>'+
+          '<div class="field-group">'+
+            '<input type="number" inputmode="numeric" class="rmin-input" placeholder="–" value="'+(s.repsMin==null?"":s.repsMin)+'">'+
+            '<span class="sep">–</span>'+
+            '<input type="number" inputmode="numeric" class="rmax-input" placeholder="–" value="'+(s.repsMax==null?"":s.repsMax)+'">'+
+            '<span class="unit">reps</span>'+
+          '</div>'+
+        '</div>';
+
+      const wInput = row.querySelector(".w-input");
+      wInput.addEventListener("input", function(){
+        s.weight = wInput.value === "" ? null : parseFloat(wInput.value);
         save("dl_workouts", workouts);
       });
+
+      const minInput = row.querySelector(".rmin-input");
+      const maxInput = row.querySelector(".rmax-input");
+      minInput.addEventListener("input", function(){
+        s.repsMin = minInput.value === "" ? null : parseInt(minInput.value,10);
+        save("dl_workouts", workouts);
+      });
+      minInput.addEventListener("blur", function(){
+        if(s.repsMin !== null && (s.repsMax === null || s.repsMax === undefined)){
+          s.repsMax = s.repsMin;
+          maxInput.value = s.repsMax;
+          save("dl_workouts", workouts);
+        }
+      });
+      maxInput.addEventListener("input", function(){
+        s.repsMax = maxInput.value === "" ? null : parseInt(maxInput.value,10);
+        save("dl_workouts", workouts);
+      });
+      maxInput.addEventListener("blur", function(){
+        if(s.repsMax !== null && (s.repsMin === null || s.repsMin === undefined)){
+          s.repsMin = s.repsMax;
+          minInput.value = s.repsMin;
+          save("dl_workouts", workouts);
+        }
+      });
+
       row.querySelector(".rm").addEventListener("click", function(){
         ex.sets.splice(i,1);
         save("dl_workouts", workouts);
@@ -537,7 +627,7 @@
   document.getElementById("add-set-btn").addEventListener("click", function(){
     const ex = currentExercise();
     if(!ex) return;
-    ex.sets.push({ weight: null });
+    ex.sets.push({ weight: null, repsMin: null, repsMax: null });
     save("dl_workouts", workouts);
     renderSets();
     renderWorkout();
@@ -578,7 +668,12 @@
     renderStrip(schedStripEl, renderSchedule);
     schedLabelEl.textContent = fmtLabel(selectedDate);
     const key = dateKey(selectedDate);
-    const items = schedule[key] || [];
+    const stored = schedule[key] || [];
+    const items = stored.slice().sort(function(a,b){
+      const av = a.time ? timeToMinutes(a.time) : Infinity;
+      const bv = b.time ? timeToMinutes(b.time) : Infinity;
+      return av - bv;
+    });
     schedListEl.innerHTML = "";
     if(items.length === 0){
       schedListEl.innerHTML = '<div class="empty-state">Nothing planned yet.<br>Add a task below.</div>';
@@ -588,20 +683,26 @@
       const card = document.createElement("div");
       card.className = "card task-card reorderable";
       card.dataset.id = task.id;
+      const metaBits = [];
+      if(task.notes) metaBits.push("📝");
+      if(task.images && task.images.length) metaBits.push("📷 "+task.images.length);
       card.innerHTML =
         '<button class="checkbox '+(task.done?"done":"")+'">'+(task.done?"✓":"")+'</button>'+
         '<div style="flex:1;">'+
           '<div class="task-text '+(task.done?"done":"")+'">'+escapeHtml(task.text)+'</div>'+
           (task.time ? '<div class="task-time">'+formatTime(task.time)+'</div>' : "")+
+          (metaBits.length ? '<div class="task-meta">'+metaBits.join("  ")+'</div>' : "")+
         '</div>'+
         '<button class="task-del">✕</button>';
-      card.querySelector(".checkbox").addEventListener("click", function(){
+      card.querySelector(".checkbox").addEventListener("click", function(e){
+        e.stopPropagation();
         task.done = !task.done;
         save("dl_schedule", schedule);
         renderSchedule();
       });
       const delBtn = card.querySelector(".task-del");
-      delBtn.addEventListener("click", function(){
+      delBtn.addEventListener("click", function(e){
+        e.stopPropagation();
         if(!delBtn.classList.contains("confirm")){
           delBtn.classList.add("confirm");
           delBtn.textContent = "Sure?";
@@ -614,8 +715,14 @@
         save("dl_schedule", schedule);
         renderSchedule();
       });
+      card.addEventListener("click", function(){ openTaskDetail(key, task.id); });
       schedListEl.appendChild(card);
     });
+  }
+
+  function timeToMinutes(t){
+    const p = t.split(":");
+    return parseInt(p[0],10)*60+parseInt(p[1],10);
   }
 
   function formatTime(t){
@@ -655,6 +762,126 @@
     renderSchedule();
   }
   makeReorderable(schedListEl, reorderSchedule);
+
+  /* ---------- 15-minute time picker ---------- */
+  function populateTimeSelect(sel){
+    const blank = document.createElement("option");
+    blank.value = ""; blank.textContent = "No time";
+    sel.appendChild(blank);
+    for(let m=0; m<24*60; m+=15){
+      const value = pad(Math.floor(m/60))+":"+pad(m%60);
+      const opt = document.createElement("option");
+      opt.value = value;
+      opt.textContent = formatTime(value);
+      sel.appendChild(opt);
+    }
+  }
+  populateTimeSelect(document.getElementById("sched-time"));
+
+  /* ---------- task detail sheet (notes + photos) ---------- */
+  const taskOverlay = document.getElementById("task-overlay");
+  const taskNotesEl = document.getElementById("task-notes");
+  const taskTitleEl = document.getElementById("task-sheet-title");
+  const taskPhotoGrid = document.getElementById("task-photo-grid");
+  const taskPhotoInput = document.getElementById("task-photo-input");
+  const taskPhotoError = document.getElementById("task-photo-error");
+  let activeTaskDayKey = null, activeTaskId = null;
+
+  function currentTask(){
+    const list = schedule[activeTaskDayKey] || [];
+    return list.find(function(t){ return t.id === activeTaskId; });
+  }
+
+  function openTaskDetail(dayKey, taskId){
+    activeTaskDayKey = dayKey; activeTaskId = taskId;
+    const task = currentTask();
+    if(!task) return;
+    taskTitleEl.textContent = task.text;
+    taskNotesEl.value = task.notes || "";
+    taskPhotoError.textContent = "";
+    renderTaskPhotos();
+    taskOverlay.classList.add("open");
+  }
+
+  function renderTaskPhotos(){
+    const task = currentTask();
+    if(!task) return;
+    taskPhotoGrid.innerHTML = "";
+    (task.images || []).forEach(function(src, i){
+      const thumb = document.createElement("div");
+      thumb.className = "photo-thumb";
+      thumb.innerHTML = '<img src="'+src+'"><button class="photo-rm">✕</button>';
+      thumb.querySelector(".photo-rm").addEventListener("click", function(){
+        task.images.splice(i,1);
+        save("dl_schedule", schedule);
+        renderTaskPhotos();
+      });
+      taskPhotoGrid.appendChild(thumb);
+    });
+  }
+
+  taskNotesEl.addEventListener("input", function(){
+    const task = currentTask();
+    if(!task) return;
+    task.notes = taskNotesEl.value;
+    save("dl_schedule", schedule);
+  });
+
+  document.getElementById("task-add-photo-btn").addEventListener("click", function(){
+    taskPhotoInput.click();
+  });
+
+  taskPhotoInput.addEventListener("change", function(){
+    const task = currentTask();
+    if(!task || !taskPhotoInput.files.length) return;
+    taskPhotoError.textContent = "";
+    Array.from(taskPhotoInput.files).forEach(function(file){
+      compressImage(file, function(dataUrl){
+        if(!task.images) task.images = [];
+        task.images.push(dataUrl);
+        const ok = save("dl_schedule", schedule);
+        if(!ok){
+          task.images.pop();
+          taskPhotoError.textContent = "Couldn't save that photo — storage is full.";
+        }
+        renderTaskPhotos();
+      }, function(){
+        taskPhotoError.textContent = "Couldn't read that photo.";
+      });
+    });
+    taskPhotoInput.value = "";
+  });
+
+  function compressImage(file, onDone, onError){
+    const reader = new FileReader();
+    reader.onload = function(){
+      const img = new Image();
+      img.onload = function(){
+        const maxDim = 1000;
+        let w = img.width, h = img.height;
+        if(w > maxDim || h > maxDim){
+          if(w > h){ h = Math.round(h * (maxDim/w)); w = maxDim; }
+          else{ w = Math.round(w * (maxDim/h)); h = maxDim; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        onDone(canvas.toDataURL("image/jpeg", 0.7));
+      };
+      img.onerror = onError;
+      img.src = reader.result;
+    };
+    reader.onerror = onError;
+    reader.readAsDataURL(file);
+  }
+
+  document.getElementById("task-sheet-close").addEventListener("click", function(){
+    taskOverlay.classList.remove("open");
+    renderSchedule();
+  });
+  taskOverlay.addEventListener("click", function(e){
+    if(e.target === taskOverlay){ taskOverlay.classList.remove("open"); renderSchedule(); }
+  });
 
   /* ---------- nav switching ---------- */
   const navBtns = document.querySelectorAll(".nav-btn");
