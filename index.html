@@ -1451,46 +1451,37 @@
     });
   }
 
-  function cascadeAfterTaskChange(task, oldStartMin){
+  // Cascade: if subsequent tasks were exactly back-to-back with task, shift them by delta.
+  // oldEndMin = task's end time BEFORE the change was applied.
+  function cascadeAfterTaskChange(task, oldEndMin){
     const key = activeTaskDayKey;
     const items = (schedule[key] || []).filter(function(t){ return !t.allDay; });
     const idx = items.findIndex(function(t){ return t.id === task.id; });
-    if(idx < 0 || !task.time) return;
+    if(idx < 0 || !task.time || !task.duration || oldEndMin === null || oldEndMin === undefined) return;
 
-    const newStartMin = timeToMinutes(task.time);
+    const newEndMin = timeToMinutes(task.time) + task.duration;
+    const delta = newEndMin - oldEndMin;
+    if(delta === 0) return;
 
-    if(task.duration){
-      // Known end time — push anything that now overlaps
-      let prevEndMin = newStartMin + task.duration;
-      for(let i = idx + 1; i < items.length; i++){
-        const next = items[i];
-        if(next.pinned) break;
-        if(!next.time) break;
-        const nextStart = timeToMinutes(next.time);
-        if(nextStart >= prevEndMin) break;
-        next.time = minutesToTimeStr(prevEndMin);
-        prevEndMin = next.duration ? timeToMinutes(next.time) + next.duration : null;
-        if(prevEndMin === null) break;
-      }
-    } else if(oldStartMin !== undefined && oldStartMin !== null){
-      // No duration — shift subsequent tasks by the same delta
-      const delta = newStartMin - oldStartMin;
-      if(delta === 0) return;
-      for(let i = idx + 1; i < items.length; i++){
-        const next = items[i];
-        if(next.pinned) break;
-        if(!next.time) break;
-        next.time = minutesToTimeStr(timeToMinutes(next.time) + delta);
-      }
+    var prevOldEnd = oldEndMin;
+    for(var i = idx + 1; i < items.length; i++){
+      var next = items[i];
+      if(next.pinned) break;
+      if(!next.time) break;
+      var nextOldStart = timeToMinutes(next.time);
+      if(nextOldStart !== prevOldEnd) break;  // gap exists — stop
+      next.time = minutesToTimeStr(nextOldStart + delta);
+      if(!next.duration) break;
+      prevOldEnd = nextOldStart + next.duration;
     }
   }
 
   taskTimeInput.addEventListener("change", function(){
     const task = currentTask();
     if(!task) return;
-    const oldStartMin = task.time ? timeToMinutes(task.time) : null;
+    const oldEndMin = (task.time && task.duration) ? timeToMinutes(task.time) + task.duration : null;
     task.time = taskTimeInput.value || null;
-    cascadeAfterTaskChange(task, oldStartMin);
+    cascadeAfterTaskChange(task, oldEndMin);
     save("dl_schedule", schedule);
     renderSchedule();
   });
@@ -1498,9 +1489,10 @@
   taskDurInput.addEventListener("change", function(){
     const task = currentTask();
     if(!task) return;
+    const oldEndMin = (task.time && task.duration) ? timeToMinutes(task.time) + task.duration : null;
     const v = parseInt(taskDurInput.value, 10);
     task.duration = v > 0 ? v : null;
-    cascadeAfterTaskChange(task);
+    cascadeAfterTaskChange(task, oldEndMin);
     save("dl_schedule", schedule);
     renderSchedule();
   });
