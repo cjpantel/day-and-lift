@@ -288,6 +288,15 @@
     font-weight:800;font-size:14px;border-radius:14px;padding:12px;margin-top:4px;
   }
   .wk-est-time{text-align:center;font-size:13px;font-weight:700;color:var(--ink-faint);padding:10px 0 4px;}
+  .wk-timer-area-wrap{padding:10px 0 4px;}
+  .wk-start-btn{width:100%;border:none;background:var(--accent-workout);color:#fff;font-weight:800;font-size:15px;border-radius:14px;padding:13px;cursor:pointer;margin-bottom:6px;}
+  .wk-start-btn:active{opacity:.8;}
+  .wk-pause-btn{width:100%;border:1.5px solid var(--accent-workout);background:none;color:var(--accent-workout);font-weight:800;font-size:15px;border-radius:14px;padding:13px;cursor:pointer;margin-bottom:6px;}
+  .wk-pause-btn:active{opacity:.6;}
+  .wk-timer-row{display:flex;align-items:baseline;justify-content:center;gap:10px;flex-wrap:wrap;padding:4px 0;}
+  .wk-elapsed{font-size:22px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;}
+  .wk-timer-stats{font-size:13px;font-weight:600;color:var(--ink-soft);}
+  .wk-behind{color:var(--danger);}
   .wk-ex-dur{font-size:12px;font-weight:700;color:var(--ink-faint);margin-right:4px;white-space:nowrap;}
   .wk-rest-connector{display:flex;justify-content:center;padding:4px 0;cursor:pointer;}
   .wk-rest-label{font-size:12px;font-weight:600;color:var(--ink-faint);background:var(--line);border-radius:8px;padding:3px 10px;}
@@ -436,6 +445,7 @@
     <div class="day-strip" id="wk-strip"></div>
     <div class="section-label" id="wk-date-label">Today</div>
     <div class="list" id="wk-list"></div>
+    <div id="wk-timer-area"></div>
     <div class="wk-add-bar">
       <div class="wk-add-row">
         <input type="text" id="wk-input" placeholder="Add exercise…" />
@@ -739,6 +749,8 @@
   let workouts = load("dl_workouts");
   let schedule = load("dl_schedule");
   let settings = load("dl_settings"); // { defaultWakeup: "07:00", wakeupTimes: { "2024-01-01": "06:30" } }
+  let timerState = load("dl_timer") || { dayKey: null, elapsed: 0, startMs: null, running: false };
+  let timerInterval = null;
 
   /* ---------- shared state ---------- */
   const today = new Date();
@@ -909,14 +921,7 @@
         wkListEl.appendChild(restEl);
       }
     });
-    // estimated workout time
-    const totalSec = estimatedWorkoutDuration(items);
-    if(totalSec !== null && totalSec > 0){
-      const timeEl = document.createElement("div");
-      timeEl.className = "wk-est-time";
-      timeEl.textContent = "Est. " + fmtDuration(totalSec);
-      wkListEl.appendChild(timeEl);
-    }
+    renderTimerArea();
     // + button after last exercise
     const addMoreBtn = document.createElement("button");
     addMoreBtn.className = "wk-add-more-btn";
@@ -973,6 +978,89 @@
     if(m < 60) return m + " min";
     const h = Math.floor(m / 60), rem = m % 60;
     return rem > 0 ? h + "h " + rem + "m" : h + "h";
+  }
+
+  function fmtStopwatch(sec){
+    const s = Math.floor(sec);
+    const m = Math.floor(s / 60);
+    const h = Math.floor(m / 60);
+    const ss = String(s % 60).padStart(2, "0");
+    const mm = String(m % 60).padStart(2, "0");
+    return h > 0 ? h + ":" + mm + ":" + ss : mm + ":" + ss;
+  }
+
+  function expectedFinishStr(remainSec){
+    const d = new Date(Date.now() + Math.max(0, remainSec) * 1000);
+    let h = d.getHours(), m = d.getMinutes();
+    const ap = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return h + ":" + String(m).padStart(2, "0") + " " + ap;
+  }
+
+  function currentTimerElapsed(){
+    if(!timerState.running || !timerState.startMs) return timerState.elapsed;
+    return timerState.elapsed + (Date.now() - timerState.startMs) / 1000;
+  }
+
+  function renderTimerArea(){
+    const area = document.getElementById("wk-timer-area");
+    if(!area) return;
+    const key = dateKey(selectedDate);
+    const items = workouts[key] || [];
+    const totalSec = estimatedWorkoutDuration(items);
+    if(!items.length || !totalSec){ area.innerHTML = ""; return; }
+    const isThisDay = timerState.dayKey === key;
+    const elapsedSec = isThisDay ? currentTimerElapsed() : 0;
+    const isRunning = isThisDay && timerState.running;
+    const hasStarted = isThisDay && (elapsedSec > 0 || isRunning);
+    let html = '<div class="wk-timer-area-wrap">';
+    if(!hasStarted){
+      html += '<div class="wk-est-time">Est. ' + fmtDuration(totalSec) + '</div>';
+      html += '<button class="wk-start-btn" id="wk-timer-btn">▶ Start Workout</button>';
+    } else {
+      const remaining = totalSec - elapsedSec;
+      html += '<div class="wk-timer-row">';
+      html += '<span class="wk-elapsed">' + fmtStopwatch(elapsedSec) + '</span>';
+      if(remaining > 0){
+        html += '<span class="wk-timer-stats">' + fmtDuration(remaining) + ' left · ' + expectedFinishStr(remaining) + '</span>';
+      } else {
+        html += '<span class="wk-timer-stats wk-behind">' + fmtDuration(-remaining) + ' behind · ' + expectedFinishStr(0) + '</span>';
+      }
+      html += '</div>';
+      if(isRunning){
+        html += '<button class="wk-pause-btn" id="wk-timer-btn">⏸ Pause</button>';
+      } else {
+        html += '<div class="wk-est-time" style="margin-bottom:4px;">Paused</div>';
+        html += '<button class="wk-start-btn" id="wk-timer-btn">▶ Resume</button>';
+      }
+    }
+    html += '</div>';
+    area.innerHTML = html;
+    const btn = document.getElementById("wk-timer-btn");
+    if(btn) btn.addEventListener("click", isRunning ? pauseTimer : startTimer);
+  }
+
+  function startTimer(){
+    const key = dateKey(selectedDate);
+    if(timerState.dayKey !== key){
+      timerState = { dayKey: key, elapsed: 0, startMs: null, running: false };
+    }
+    timerState.startMs = Date.now() - timerState.elapsed * 1000;
+    timerState.running = true;
+    save("dl_timer", timerState);
+    clearInterval(timerInterval);
+    timerInterval = setInterval(renderTimerArea, 1000);
+    renderTimerArea();
+  }
+
+  function pauseTimer(){
+    timerState.elapsed = currentTimerElapsed();
+    timerState.startMs = null;
+    timerState.running = false;
+    save("dl_timer", timerState);
+    clearInterval(timerInterval);
+    timerInterval = null;
+    renderTimerArea();
   }
 
   function addExercise(){
@@ -2276,6 +2364,9 @@
   renderSchedule();
   renderAlldayList();
   renderWorkout();
+  if(timerState.running){
+    timerInterval = setInterval(renderTimerArea, 1000);
+  }
 })();
 </script>
 </body>
