@@ -501,6 +501,20 @@
   .tag-manager-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);}
   .tag-manager-chip{flex:1;display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--ink);}
   .tag-manager-del{background:none;border:none;color:var(--ink-faint);font-size:16px;cursor:pointer;padding:4px;}
+
+  /* Library exercise row tags */
+  .lib-ex-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
+  .lib-ex-tags .tag-chip{font-size:11px;padding:3px 8px;}
+  .lib-ex-edit-btn{background:none;border:none;color:var(--ink-faint);font-size:16px;cursor:pointer;padding:4px 8px;flex-shrink:0;line-height:1;}
+
+  /* History detail sheet */
+  .hist-detail-section-lbl{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);margin:14px 0 6px;display:block;}
+  .hist-detail-breakdown{}
+  .hist-detail-bp-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);}
+  .hist-detail-bp-tag{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--ink);}
+  .hist-detail-bp-sets{font-size:14px;font-weight:800;color:var(--ink);white-space:nowrap;}
+  .hist-jump-btn{display:block;width:100%;border:none;background:var(--accent-schedule);color:#fff;font-weight:800;font-size:15px;border-radius:14px;padding:14px;cursor:pointer;margin-top:14px;}
+  .hist-card{cursor:pointer;}
 </style>
 </head>
 <body>
@@ -666,6 +680,11 @@
     <div id="sets-container"></div>
     <button class="add-set-btn" id="add-set-btn">+ Add Set</button>
     <textarea id="ex-notes" class="task-notes" placeholder="Add notes… e.g. felt heavy, good form" style="margin-top:12px;"></textarea>
+    <div id="ex-tags-section" style="margin-top:14px;">
+      <span class="finish-section-lbl">Tags</span>
+      <div class="tags-scroll" id="ex-tags-scroll"></div>
+      <div id="ex-tag-create-area"></div>
+    </div>
     <div class="settings-row" style="margin-top:12px;">
       <div class="settings-row-label">
         <div class="settings-row-title">Rest Between Sets</div>
@@ -953,6 +972,33 @@
     <div id="tags-manager-list"></div>
     <div id="tags-manager-create-area" style="margin-top:12px;"></div>
     <button class="tag-add-chip" id="tags-manager-add-btn" style="margin-top:12px;">+ New Tag</button>
+  </div>
+</div>
+
+<!-- LIBRARY EXERCISE DETAIL SHEET -->
+<div class="overlay" id="lib-ex-detail-overlay">
+  <div class="sheet" style="--accent-color:var(--accent-workout);">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h2 id="lib-ex-detail-name" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></h2>
+      <button class="sheet-icon-btn" id="lib-ex-detail-close">✕</button>
+    </div>
+    <span class="finish-section-lbl">Tags</span>
+    <div class="tags-scroll" id="lib-ex-tags-scroll"></div>
+    <div id="lib-ex-tag-create-area"></div>
+  </div>
+</div>
+
+<!-- WORKOUT HISTORY DETAIL SHEET -->
+<div class="overlay" id="hist-detail-overlay">
+  <div class="sheet" style="--accent-color:var(--accent-workout);">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h2 id="hist-detail-name" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></h2>
+      <button class="sheet-icon-btn" id="hist-detail-close">✕</button>
+    </div>
+    <div id="hist-detail-body"></div>
+    <button class="hist-jump-btn" id="hist-detail-jump">Jump to Day →</button>
   </div>
 </div>
 
@@ -1705,6 +1751,7 @@
       restBetweenSets: ex.restBetweenSets || null,
       restAfter: ex.restAfter || null,
       completedAtElapsed: null,
+      tagIds: (ex.tagIds || []).slice(),
       sets: ex.sets.map(function(s){
         return { weight: s.weight, repsMin: s.repsMin, repsMax: s.repsMax,
                  done: false, startedAtElapsed: null, repsActual: null };
@@ -1840,6 +1887,7 @@
 
   function renderLibrarySheet(){
     library = loadArr("dl_library");
+    tags = loadArr("dl_tags");
     const el = document.getElementById("library-list");
     const selBtn = document.getElementById("lib-select-btn");
     const q = (document.getElementById("lib-search") ? document.getElementById("lib-search").value : "").toLowerCase().trim();
@@ -1909,13 +1957,27 @@
           renderLibrarySheet();
         });
       } else {
+        const exTags = (libEx.tagIds || []).map(function(id){ return tags.find(function(t){ return t.id === id; }); }).filter(Boolean);
+        let libTagsHtml = "";
+        if(exTags.length){
+          libTagsHtml = '<div class="lib-ex-tags">';
+          exTags.forEach(function(tag){
+            libTagsHtml += '<span class="tag-chip sel" style="background:'+tag.color+'22;color:'+tag.color+';border-color:'+tag.color+';">'+escapeHtml(tag.name)+'</span>';
+          });
+          libTagsHtml += '</div>';
+        }
         row.innerHTML =
-          '<div class="lib-ex-info">'+
+          '<div class="lib-ex-info" style="flex:1;min-width:0;">'+
             '<div class="lib-ex-name">'+escapeHtml(libEx.name)+'</div>'+
             '<div class="lib-ex-sub">'+escapeHtml(sub)+'</div>'+
+            libTagsHtml+
           '</div>'+
+          '<button class="lib-ex-edit-btn" title="Edit tags">✎</button>'+
           '<button class="lib-add-btn">+ Add</button>'+
           '<button class="lib-del-btn" title="Remove from library">✕</button>';
+        row.querySelector(".lib-ex-edit-btn").addEventListener("click", function(){
+          openLibExDetail(libEx.id);
+        });
         row.querySelector(".lib-add-btn").addEventListener("click", function(){
           const key = dateKey(selectedDate);
           if(!workouts[key]) workouts[key] = [];
@@ -2135,7 +2197,69 @@
     document.getElementById("ex-notes").value = ex.notes || "";
     document.getElementById("ex-rest-sets-select").value = ex.restBetweenSets != null ? String(ex.restBetweenSets) : "";
     renderSets();
+    renderExTagPicker();
     overlay.classList.add("open");
+  }
+
+  function renderExTagPicker(){
+    tags = loadArr("dl_tags");
+    const ex = currentExercise();
+    if(!ex) return;
+    if(!ex.tagIds) ex.tagIds = [];
+    const scroll = document.getElementById("ex-tags-scroll");
+    const createArea = document.getElementById("ex-tag-create-area");
+    createArea.innerHTML = "";
+    scroll.innerHTML = "";
+    tags.forEach(function(tag){
+      const chip = document.createElement("button");
+      chip.className = "tag-chip" + (ex.tagIds.indexOf(tag.id) !== -1 ? " sel" : "");
+      chip.style.background = tag.color + "22";
+      chip.style.color = tag.color;
+      chip.style.borderColor = tag.color;
+      chip.textContent = tag.name;
+      chip.addEventListener("click", function(){
+        const ex2 = currentExercise();
+        if(!ex2) return;
+        if(!ex2.tagIds) ex2.tagIds = [];
+        const idx = ex2.tagIds.indexOf(tag.id);
+        if(idx !== -1){ ex2.tagIds.splice(idx,1); } else { ex2.tagIds.push(tag.id); }
+        save("dl_workouts", workouts);
+        renderExTagPicker();
+      });
+      scroll.appendChild(chip);
+    });
+    const addChip = document.createElement("button");
+    addChip.className = "tag-add-chip";
+    addChip.textContent = "+ New Tag";
+    addChip.addEventListener("click", showExTagCreateRow);
+    scroll.appendChild(addChip);
+  }
+
+  function showExTagCreateRow(){
+    const area = document.getElementById("ex-tag-create-area");
+    if(area.querySelector(".tag-create-input")) return;
+    area.innerHTML =
+      '<div class="tag-create-row">'+
+        '<input type="text" class="tag-create-input" placeholder="Tag name…" maxlength="24" />'+
+        '<button class="tag-create-btn">Add</button>'+
+        '<button class="tag-create-cancel">Cancel</button>'+
+      '</div>';
+    const input = area.querySelector(".tag-create-input");
+    const addBtn = area.querySelector(".tag-create-btn");
+    const cancelBtn = area.querySelector(".tag-create-cancel");
+    input.focus();
+    function doAdd(){
+      const name = input.value.trim();
+      if(!name) return;
+      const tag = createTag(name);
+      const ex = currentExercise();
+      if(ex){ if(!ex.tagIds) ex.tagIds = []; ex.tagIds.push(tag.id); save("dl_workouts", workouts); }
+      area.innerHTML = "";
+      renderExTagPicker();
+    }
+    addBtn.addEventListener("click", doAdd);
+    input.addEventListener("keydown", function(e){ if(e.key === "Enter") doAdd(); });
+    cancelBtn.addEventListener("click", function(){ area.innerHTML = ""; });
   }
 
   document.getElementById("ex-notes").addEventListener("input", function(){
@@ -3415,12 +3539,19 @@
   function deleteTag(tagId){
     tags = tags.filter(function(t){ return t.id !== tagId; });
     save("dl_tags", tags);
-    // Remove from all history entries
     history = loadArr("dl_history");
     history.forEach(function(entry){
       entry.tagIds = (entry.tagIds || []).filter(function(id){ return id !== tagId; });
+      (entry.exercises || []).forEach(function(ex){ ex.tagIds = (ex.tagIds || []).filter(function(id){ return id !== tagId; }); });
     });
     save("dl_history", history);
+    library = loadArr("dl_library");
+    library.forEach(function(ex){ ex.tagIds = (ex.tagIds || []).filter(function(id){ return id !== tagId; }); });
+    save("dl_library", library);
+    Object.keys(workouts).forEach(function(key){
+      (workouts[key] || []).forEach(function(ex){ ex.tagIds = (ex.tagIds || []).filter(function(id){ return id !== tagId; }); });
+    });
+    save("dl_workouts", workouts);
   }
 
   /* ================= FINISH WORKOUT SHEET ================= */
@@ -3533,7 +3664,10 @@
       totalSets: totalSets,
       doneSetCount: doneSetCount,
       exerciseCount: items.length,
-      tagIds: tagIds || []
+      tagIds: tagIds || [],
+      exercises: items.map(function(ex){
+        return { name: ex.name, tagIds: (ex.tagIds || []).slice(), sets: ex.sets.length, doneSets: ex.sets.filter(function(s){ return s.done; }).length };
+      })
     };
     history = loadArr("dl_history");
     history.push(entry);
@@ -3624,7 +3758,8 @@
         '<button class="hist-card-del" title="Delete">🗑</button>';
       const delBtn = card.querySelector(".hist-card-del");
       let delArmed = false;
-      delBtn.addEventListener("click", function(){
+      delBtn.addEventListener("click", function(e){
+        e.stopPropagation();
         if(!delArmed){
           delArmed = true;
           delBtn.textContent = "Sure?";
@@ -3636,9 +3771,164 @@
         save("dl_history", history);
         renderHistory();
       });
+      card.addEventListener("click", function(){ openHistDetail(entry); });
       listEl.appendChild(card);
     });
   }
+
+  /* ================= HISTORY DETAIL SHEET ================= */
+
+  function openHistDetail(entry){
+    tags = loadArr("dl_tags");
+    document.getElementById("hist-detail-name").textContent = entry.name;
+    const body = document.getElementById("hist-detail-body");
+    let html = '<div class="hist-card-date" style="margin-bottom:8px;">'+escapeHtml(fmtHistDate(entry.date))+'</div>';
+    const entryTags = (entry.tagIds || []).map(function(id){ return tags.find(function(t){ return t.id===id; }); }).filter(Boolean);
+    if(entryTags.length){
+      html += '<div class="hist-card-tags" style="margin-bottom:10px;">';
+      entryTags.forEach(function(tag){
+        html += '<span class="tag-chip sel" style="background:'+tag.color+'22;color:'+tag.color+';border-color:'+tag.color+';">'+escapeHtml(tag.name)+'</span>';
+      });
+      html += '</div>';
+    }
+    const timeStr = entry.startTimestamp ? fmtHistTime(entry.startTimestamp) : "";
+    const durMin = entry.durationSec ? Math.round(entry.durationSec/60) : 0;
+    if(timeStr) html += '<div class="hist-card-stats">Started '+escapeHtml(timeStr)+' · '+durMin+' min</div>';
+    else if(durMin) html += '<div class="hist-card-stats">'+durMin+' min</div>';
+    html += '<div class="hist-card-stats" style="margin-bottom:2px;">'+entry.totalSets+' sets · '+entry.exerciseCount+' exercise'+(entry.exerciseCount!==1?'s':'')+'</div>';
+    const exercises = entry.exercises || [];
+    const tagSetCounts = {};
+    exercises.forEach(function(ex){
+      (ex.tagIds || []).forEach(function(tagId){
+        tagSetCounts[tagId] = (tagSetCounts[tagId]||0) + ex.sets;
+      });
+    });
+    const usedTagIds = Object.keys(tagSetCounts);
+    if(usedTagIds.length){
+      html += '<span class="hist-detail-section-lbl">Sets by Body Part</span><div class="hist-detail-breakdown">';
+      usedTagIds.forEach(function(tagId){
+        const tag = tags.find(function(t){ return t.id===tagId; });
+        if(!tag) return;
+        const count = tagSetCounts[tagId];
+        html += '<div class="hist-detail-bp-row">'+
+          '<div class="hist-detail-bp-tag"><span style="width:12px;height:12px;border-radius:50%;background:'+tag.color+';display:inline-block;flex-shrink:0;"></span>'+escapeHtml(tag.name)+'</div>'+
+          '<div class="hist-detail-bp-sets">'+count+' set'+(count!==1?'s':'')+'</div>'+
+        '</div>';
+      });
+      html += '</div>';
+    }
+    body.innerHTML = html;
+    const jumpBtn = document.getElementById("hist-detail-jump");
+    jumpBtn.onclick = function(){
+      const parts = entry.date.split("-");
+      const d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+      selectedDate = d;
+      weekStart = startOfWeek(d);
+      document.getElementById("hist-detail-overlay").classList.remove("open");
+      navBtns.forEach(function(b){ b.classList.remove("active"); });
+      document.querySelector(".nav-btn[data-target='workout']").classList.add("active");
+      Object.keys(views).forEach(function(k){ views[k].classList.remove("active"); });
+      views.workout.classList.add("active");
+      renderWorkout();
+    };
+    document.getElementById("hist-detail-overlay").classList.add("open");
+  }
+
+  document.getElementById("hist-detail-close").addEventListener("click", function(){
+    document.getElementById("hist-detail-overlay").classList.remove("open");
+  });
+  document.getElementById("hist-detail-overlay").addEventListener("click", function(e){
+    if(e.target===document.getElementById("hist-detail-overlay")) document.getElementById("hist-detail-overlay").classList.remove("open");
+  });
+
+  /* ================= LIBRARY EXERCISE DETAIL SHEET ================= */
+
+  let activeLibExId = null;
+
+  function openLibExDetail(libExId){
+    activeLibExId = libExId;
+    library = loadArr("dl_library");
+    const libEx = library.find(function(e){ return e.id===libExId; });
+    if(!libEx) return;
+    document.getElementById("lib-ex-detail-name").textContent = libEx.name;
+    renderLibExTagPicker();
+    document.getElementById("lib-ex-detail-overlay").classList.add("open");
+  }
+
+  function renderLibExTagPicker(){
+    tags = loadArr("dl_tags");
+    library = loadArr("dl_library");
+    const libEx = library.find(function(e){ return e.id===activeLibExId; });
+    if(!libEx) return;
+    if(!libEx.tagIds) libEx.tagIds = [];
+    const scroll = document.getElementById("lib-ex-tags-scroll");
+    const createArea = document.getElementById("lib-ex-tag-create-area");
+    createArea.innerHTML = "";
+    scroll.innerHTML = "";
+    tags.forEach(function(tag){
+      const chip = document.createElement("button");
+      chip.className = "tag-chip" + (libEx.tagIds.indexOf(tag.id)!==-1?" sel":"");
+      chip.style.background = tag.color+"22";
+      chip.style.color = tag.color;
+      chip.style.borderColor = tag.color;
+      chip.textContent = tag.name;
+      chip.addEventListener("click", function(){
+        library = loadArr("dl_library");
+        const libEx2 = library.find(function(e){ return e.id===activeLibExId; });
+        if(!libEx2) return;
+        if(!libEx2.tagIds) libEx2.tagIds = [];
+        const idx = libEx2.tagIds.indexOf(tag.id);
+        if(idx!==-1){ libEx2.tagIds.splice(idx,1); } else { libEx2.tagIds.push(tag.id); }
+        save("dl_library", library);
+        renderLibExTagPicker();
+      });
+      scroll.appendChild(chip);
+    });
+    const addChip = document.createElement("button");
+    addChip.className = "tag-add-chip";
+    addChip.textContent = "+ New Tag";
+    addChip.addEventListener("click", showLibExTagCreateRow);
+    scroll.appendChild(addChip);
+  }
+
+  function showLibExTagCreateRow(){
+    const area = document.getElementById("lib-ex-tag-create-area");
+    if(area.querySelector(".tag-create-input")) return;
+    area.innerHTML =
+      '<div class="tag-create-row">'+
+        '<input type="text" class="tag-create-input" placeholder="Tag name…" maxlength="24" />'+
+        '<button class="tag-create-btn">Add</button>'+
+        '<button class="tag-create-cancel">Cancel</button>'+
+      '</div>';
+    const input = area.querySelector(".tag-create-input");
+    const addBtn = area.querySelector(".tag-create-btn");
+    const cancelBtn = area.querySelector(".tag-create-cancel");
+    input.focus();
+    function doAdd(){
+      const name = input.value.trim();
+      if(!name) return;
+      const tag = createTag(name);
+      library = loadArr("dl_library");
+      const libEx = library.find(function(e){ return e.id===activeLibExId; });
+      if(libEx){ if(!libEx.tagIds) libEx.tagIds=[]; libEx.tagIds.push(tag.id); save("dl_library", library); }
+      area.innerHTML = "";
+      renderLibExTagPicker();
+    }
+    addBtn.addEventListener("click", doAdd);
+    input.addEventListener("keydown", function(e){ if(e.key==="Enter") doAdd(); });
+    cancelBtn.addEventListener("click", function(){ area.innerHTML = ""; });
+  }
+
+  document.getElementById("lib-ex-detail-close").addEventListener("click", function(){
+    document.getElementById("lib-ex-detail-overlay").classList.remove("open");
+    renderLibrarySheet();
+  });
+  document.getElementById("lib-ex-detail-overlay").addEventListener("click", function(e){
+    if(e.target===document.getElementById("lib-ex-detail-overlay")){
+      document.getElementById("lib-ex-detail-overlay").classList.remove("open");
+      renderLibrarySheet();
+    }
+  });
 
   /* ================= TAG MANAGER SHEET ================= */
 
