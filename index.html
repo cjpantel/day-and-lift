@@ -946,7 +946,7 @@
     const restEx = settings.wkRestBetweenExercises || 120;
     let activeId = null;
     if(expandedExId){
-      const pinned = items.find(function(ex){ return ex.id === expandedExId && ex.completedAtElapsed == null; });
+      const pinned = items.find(function(ex){ return ex.id === expandedExId; });
       if(pinned) activeId = pinned.id;
     }
     if(!activeId){
@@ -967,7 +967,7 @@
         card.dataset.id = ex.id;
         card.innerHTML =
           '<div class="ex-active-header">'+
-            '<div class="wk-done-circle">'+( idx+1 )+'</div>'+
+            '<div class="wk-done-circle'+(isDone?' done':'')+'">'+( isDone ? '✓' : (idx+1))+'</div>'+
             '<div class="card-body"><div class="name">'+escapeHtml(ex.name)+'</div>'+
             '<div class="sub">'+subLine+'</div></div>'+
             (durSec > 0 ? '<div class="wk-ex-dur">'+fmtDuration(durSec)+'</div>' : '')+
@@ -1149,7 +1149,8 @@
         });
         card.querySelector(".chevron").addEventListener("click", function(e){
           e.stopPropagation();
-          if(!isDone){ expandedExId = ex.id; renderWorkout(); } else { openSetEditor(key, ex.id); }
+          expandedExId = ex.id;
+          renderWorkout();
         });
         card.addEventListener("click", function(){ openSetEditor(key, ex.id); });
         wkListEl.appendChild(card);
