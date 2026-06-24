@@ -901,7 +901,9 @@
       '<div class="tl-line"></div>';
     wakeupConnector.querySelector(".tl-insert-btn").addEventListener("click", function(e){
       e.stopPropagation();
-      openInsertSheet(key, 0, wt);
+      const gapMin = (wt && items.length > 0 && dispStartMin[0] !== null)
+        ? dispStartMin[0] - timeToMinutes(wt) : null;
+      openInsertSheet(key, 0, wt, gapMin > 0 ? snapDuration(gapMin) : null);
     });
     schedListEl.appendChild(wakeupConnector);
 
@@ -985,7 +987,10 @@
         '<div class="tl-line"></div>';
       connector.querySelector(".tl-insert-btn").addEventListener("click", function(e){
         e.stopPropagation();
-        openInsertSheet(key, idx + 1, emLocal !== null ? minutesToTimeStr(emLocal) : "");
+        const sugTime = emLocal !== null ? minutesToTimeStr(emLocal) : "";
+        const nextStart = (idx + 1 < dispStartMin.length) ? dispStartMin[idx + 1] : null;
+        const gapMin = (emLocal !== null && nextStart !== null) ? nextStart - emLocal : null;
+        openInsertSheet(key, idx + 1, sugTime, gapMin > 0 ? snapDuration(gapMin) : null);
       });
 
       wrapper.appendChild(card);
@@ -1037,7 +1042,27 @@
     const byId = {};
     arr.forEach(function(t){ byId[t.id] = t; });
     const alldayTasks = arr.filter(function(t){ return t.allDay; });
+    const oldTimedTasks = arr.filter(function(t){ return !t.allDay; });
     const timedTasks = idsInOrder.map(function(id){ return byId[id]; }).filter(Boolean);
+
+    // Cascade times from the anchor (old first task's time, or wakeup seed)
+    const wakeupSeed = (settings.wakeupTimes && settings.wakeupTimes[key]) || settings.defaultWakeup || null;
+    let anchorMin = null;
+    if(oldTimedTasks.length > 0 && oldTimedTasks[0].time){
+      anchorMin = timeToMinutes(oldTimedTasks[0].time);
+    } else if(wakeupSeed){
+      anchorMin = timeToMinutes(wakeupSeed);
+    }
+    let prevEndMin = anchorMin;
+    timedTasks.forEach(function(task){
+      if(prevEndMin !== null){
+        task.time = minutesToTimeStr(prevEndMin);
+        prevEndMin = task.duration ? prevEndMin + task.duration : null;
+      } else if(task.time){
+        prevEndMin = task.duration ? timeToMinutes(task.time) + task.duration : null;
+      }
+    });
+
     schedule[key] = alldayTasks.concat(timedTasks);
     save("dl_schedule", schedule);
     renderSchedule();
@@ -1273,13 +1298,28 @@
   const insertDurSel = document.getElementById("insert-dur-select");
   let insertAfterIndex = 0, insertDayKey = null;
 
-  function openInsertSheet(dayKey, afterIndex, suggestedTimeStr){
+  function snapDuration(minutes){
+    if(!minutes || minutes <= 0) return "";
+    const opts = [15,30,45,60,90,120];
+    if(minutes >= 120) return "120";
+    let best = opts[0], bestDiff = Math.abs(minutes - best);
+    opts.forEach(function(o){
+      const d = Math.abs(minutes - o);
+      if(d < bestDiff){ best = o; bestDiff = d; }
+    });
+    return String(best);
+  }
+
+  function openInsertSheet(dayKey, afterIndex, suggestedTimeStr, suggestedDuration){
     insertDayKey = dayKey;
     insertAfterIndex = afterIndex;
     insertTaskInput.value = "";
-    insertDurSel.selectedIndex = 0;
-    // Pre-fill start time with the cascaded time at this position
     insertTimeSel.value = suggestedTimeStr || "";
+    if(suggestedDuration){
+      insertDurSel.value = String(suggestedDuration);
+    } else {
+      insertDurSel.selectedIndex = 0;
+    }
     insertOverlay.classList.add("open");
     setTimeout(function(){ insertTaskInput.focus(); }, 80);
   }
