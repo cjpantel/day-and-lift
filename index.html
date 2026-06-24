@@ -1332,6 +1332,7 @@
           } else {
             autoStartTimerIfNeeded();
             ex.completedAtElapsed = currentTimerElapsed();
+            ex.sets.forEach(function(s){ s.done = true; });
           }
           save("dl_workouts", workouts);
           renderWorkout();
@@ -1494,6 +1495,7 @@
           } else {
             autoStartTimerIfNeeded();
             ex.completedAtElapsed = currentTimerElapsed();
+            ex.sets.forEach(function(s){ s.done = true; });
           }
           save("dl_workouts", workouts);
           renderWorkout();
