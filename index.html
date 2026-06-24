@@ -1451,29 +1451,46 @@
     });
   }
 
-  function cascadeAfterTaskChange(task){
+  function cascadeAfterTaskChange(task, oldStartMin){
     const key = activeTaskDayKey;
     const items = (schedule[key] || []).filter(function(t){ return !t.allDay; });
     const idx = items.findIndex(function(t){ return t.id === task.id; });
-    if(idx < 0 || !task.time || !task.duration) return;
-    let prevEndMin = timeToMinutes(task.time) + task.duration;
-    for(let i = idx + 1; i < items.length; i++){
-      const next = items[i];
-      if(next.pinned) break;
-      if(!next.time) break;
-      const nextStart = timeToMinutes(next.time);
-      if(nextStart >= prevEndMin) break;
-      next.time = minutesToTimeStr(prevEndMin);
-      prevEndMin = next.duration ? timeToMinutes(next.time) + next.duration : null;
-      if(prevEndMin === null) break;
+    if(idx < 0 || !task.time) return;
+
+    const newStartMin = timeToMinutes(task.time);
+
+    if(task.duration){
+      // Known end time — push anything that now overlaps
+      let prevEndMin = newStartMin + task.duration;
+      for(let i = idx + 1; i < items.length; i++){
+        const next = items[i];
+        if(next.pinned) break;
+        if(!next.time) break;
+        const nextStart = timeToMinutes(next.time);
+        if(nextStart >= prevEndMin) break;
+        next.time = minutesToTimeStr(prevEndMin);
+        prevEndMin = next.duration ? timeToMinutes(next.time) + next.duration : null;
+        if(prevEndMin === null) break;
+      }
+    } else if(oldStartMin !== undefined && oldStartMin !== null){
+      // No duration — shift subsequent tasks by the same delta
+      const delta = newStartMin - oldStartMin;
+      if(delta === 0) return;
+      for(let i = idx + 1; i < items.length; i++){
+        const next = items[i];
+        if(next.pinned) break;
+        if(!next.time) break;
+        next.time = minutesToTimeStr(timeToMinutes(next.time) + delta);
+      }
     }
   }
 
   taskTimeInput.addEventListener("change", function(){
     const task = currentTask();
     if(!task) return;
+    const oldStartMin = task.time ? timeToMinutes(task.time) : null;
     task.time = taskTimeInput.value || null;
-    cascadeAfterTaskChange(task);
+    cascadeAfterTaskChange(task, oldStartMin);
     save("dl_schedule", schedule);
     renderSchedule();
   });
