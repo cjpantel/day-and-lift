@@ -953,9 +953,6 @@
       <button class="sheet-icon-btn" id="finish-close">✕</button>
     </div>
     <input type="text" id="finish-name-input" class="finish-name-input" placeholder="Workout name…" />
-    <span class="finish-section-lbl">Tags</span>
-    <div class="tags-scroll" id="finish-tags-scroll"></div>
-    <div id="finish-tag-create-area"></div>
     <div class="finish-summary" id="finish-summary"></div>
     <button class="finish-save-btn" id="finish-save-btn">Save Workout</button>
   </div>
@@ -1061,7 +1058,6 @@
   // History & tags state
   let history = loadArr("dl_history");
   let tags = loadArr("dl_tags");
-  let finishSelectedTagIds = [];
   const TAG_COLORS = ['#FF5A36','#4C5FD5','#2ECC71','#F39C12','#9B59B6','#1ABC9C','#E74C3C','#2980B9'];
 
   /* ---------- shared state ---------- */
@@ -3557,68 +3553,11 @@
   /* ================= FINISH WORKOUT SHEET ================= */
 
   function openFinishWorkout(){
-    tags = loadArr("dl_tags");
-    finishSelectedTagIds = [];
     const key = dateKey(selectedDate);
-    // Pre-fill name with date like "Wednesday, June 24"
     const nameInput = document.getElementById("finish-name-input");
     nameInput.value = selectedDate.toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" });
-    renderFinishTagPicker();
     renderFinishSummary();
     document.getElementById("finish-overlay").classList.add("open");
-  }
-
-  function renderFinishTagPicker(){
-    tags = loadArr("dl_tags");
-    const scroll = document.getElementById("finish-tags-scroll");
-    scroll.innerHTML = "";
-    tags.forEach(function(tag){
-      const chip = document.createElement("button");
-      chip.className = "tag-chip" + (finishSelectedTagIds.indexOf(tag.id) !== -1 ? " sel" : "");
-      chip.style.background = tag.color + "22";
-      chip.style.color = tag.color;
-      chip.style.borderColor = tag.color;
-      chip.textContent = tag.name;
-      chip.addEventListener("click", function(){
-        const idx = finishSelectedTagIds.indexOf(tag.id);
-        if(idx !== -1){ finishSelectedTagIds.splice(idx, 1); } else { finishSelectedTagIds.push(tag.id); }
-        renderFinishTagPicker();
-      });
-      scroll.appendChild(chip);
-    });
-    const addChip = document.createElement("button");
-    addChip.className = "tag-add-chip";
-    addChip.textContent = "+ New Tag";
-    addChip.addEventListener("click", function(){
-      showFinishTagCreateRow();
-    });
-    scroll.appendChild(addChip);
-  }
-
-  function showFinishTagCreateRow(){
-    const area = document.getElementById("finish-tag-create-area");
-    if(area.querySelector(".tag-create-input")) return; // already shown
-    area.innerHTML =
-      '<div class="tag-create-row">'+
-        '<input type="text" class="tag-create-input" placeholder="Tag name…" maxlength="24" />'+
-        '<button class="tag-create-btn">Add</button>'+
-        '<button class="tag-create-cancel">Cancel</button>'+
-      '</div>';
-    const input = area.querySelector(".tag-create-input");
-    const addBtn = area.querySelector(".tag-create-btn");
-    const cancelBtn = area.querySelector(".tag-create-cancel");
-    input.focus();
-    function doAdd(){
-      const name = input.value.trim();
-      if(!name) return;
-      const tag = createTag(name);
-      finishSelectedTagIds.push(tag.id);
-      area.innerHTML = "";
-      renderFinishTagPicker();
-    }
-    addBtn.addEventListener("click", doAdd);
-    input.addEventListener("keydown", function(e){ if(e.key === "Enter") doAdd(); });
-    cancelBtn.addEventListener("click", function(){ area.innerHTML = ""; });
   }
 
   function renderFinishSummary(){
@@ -3648,13 +3587,22 @@
       '<div><div class="finish-stat-val">'+durMin+' min</div><div class="finish-stat-lbl">Duration</div></div>';
   }
 
-  function saveWorkoutToHistory(name, tagIds){
+  function saveWorkoutToHistory(name){
     const key = dateKey(selectedDate);
     const items = workouts[key] || [];
     const totalSets = items.reduce(function(sum, ex){ return sum + ex.sets.length; }, 0);
     const doneSetCount = items.reduce(function(sum, ex){
       return sum + ex.sets.filter(function(s){ return s.done; }).length;
     }, 0);
+    const exercises = items.map(function(ex){
+      return { name: ex.name, tagIds: (ex.tagIds || []).slice(), sets: ex.sets.length, doneSets: ex.sets.filter(function(s){ return s.done; }).length };
+    });
+    const derivedTagIds = [];
+    exercises.forEach(function(ex){
+      (ex.tagIds || []).forEach(function(tid){
+        if(derivedTagIds.indexOf(tid) === -1) derivedTagIds.push(tid);
+      });
+    });
     const entry = {
       id: uid(),
       name: name || fmtLabel(selectedDate),
@@ -3664,10 +3612,8 @@
       totalSets: totalSets,
       doneSetCount: doneSetCount,
       exerciseCount: items.length,
-      tagIds: tagIds || [],
-      exercises: items.map(function(ex){
-        return { name: ex.name, tagIds: (ex.tagIds || []).slice(), sets: ex.sets.length, doneSets: ex.sets.filter(function(s){ return s.done; }).length };
-      })
+      tagIds: derivedTagIds,
+      exercises: exercises
     };
     history = loadArr("dl_history");
     history.push(entry);
@@ -3697,7 +3643,7 @@
   });
   document.getElementById("finish-save-btn").addEventListener("click", function(){
     const name = document.getElementById("finish-name-input").value.trim();
-    saveWorkoutToHistory(name, finishSelectedTagIds.slice());
+    saveWorkoutToHistory(name);
   });
 
   /* ================= HISTORY VIEW ================= */
