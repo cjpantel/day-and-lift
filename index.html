@@ -945,11 +945,11 @@
     }
     const restEx = settings.wkRestBetweenExercises || 120;
     let activeId = null;
-    if(expandedExId){
+    if(expandedExId && expandedExId !== "none"){
       const pinned = items.find(function(ex){ return ex.id === expandedExId; });
       if(pinned) activeId = pinned.id;
     }
-    if(!activeId){
+    if(!activeId && expandedExId !== "none"){
       const first = items.find(function(ex){ return ex.completedAtElapsed == null; });
       if(first) activeId = first.id;
     }
@@ -977,7 +977,7 @@
 
         card.querySelector(".chevron").addEventListener("click", function(e){
           e.stopPropagation();
-          expandedExId = null;
+          expandedExId = "none";
           renderWorkout();
         });
         card.querySelector(".card-body").addEventListener("click", function(e){
