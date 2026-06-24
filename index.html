@@ -905,6 +905,7 @@
     });
     schedListEl.appendChild(wakeupConnector);
 
+    if(typeof renderAlldayList === "function") renderAlldayList();
     if(items.length === 0) return;
     items.forEach(function(task, idx){
       const wrapper = document.createElement("div");
@@ -991,7 +992,6 @@
       wrapper.appendChild(connector);
       schedListEl.appendChild(wrapper);
     });
-    if(typeof renderAlldayList === "function") renderAlldayList();
   }
 
   function timeToMinutes(t){
@@ -1024,7 +1024,7 @@
     const key = dateKey(selectedDate);
     if(!schedule[key]) schedule[key] = [];
     const isAllDay = !timeInput.value && !duration;
-    schedule[key].push({ id: uid(), text: text, allDay: isAllDay || undefined, time: isAllDay ? null : (timeInput.value || null), duration: isAllDay ? null : duration, done: false });
+    schedule[key].push({ id: uid(), text: text, allDay: isAllDay, time: isAllDay ? null : (timeInput.value || null), duration: isAllDay ? null : duration, done: false });
     save("dl_schedule", schedule);
     textInput.value = ""; timeInput.selectedIndex = 0; durInput.selectedIndex = 0;
     renderSchedule();
@@ -1036,7 +1036,9 @@
     const arr = schedule[key] || [];
     const byId = {};
     arr.forEach(function(t){ byId[t.id] = t; });
-    schedule[key] = idsInOrder.map(function(id){ return byId[id]; }).filter(Boolean);
+    const alldayTasks = arr.filter(function(t){ return t.allDay; });
+    const timedTasks = idsInOrder.map(function(id){ return byId[id]; }).filter(Boolean);
+    schedule[key] = alldayTasks.concat(timedTasks);
     save("dl_schedule", schedule);
     renderSchedule();
   }
