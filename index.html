@@ -1014,6 +1014,7 @@
           '<button class="checkbox js-item-check '+(task.done?"done":"")+'" data-si="-1">'+(task.done?"✓":"")+'</button>'+
           '<div style="flex:1;min-width:0;">'+
             '<div class="task-text '+(task.done?"done":"")+'">'+escapeHtml(task.text)+'</div>'+
+            (task.selfDuration ? '<div class="task-meta">'+durLabel(task.selfDuration)+'</div>' : '')+
             (metaBits.length ? '<div class="task-meta">'+metaBits.join("  ")+'</div>' : "")+
           '</div>'+
           '<button class="task-del">✕</button>'+
@@ -1314,11 +1315,14 @@
       const durSel = document.createElement("select");
       durSel.style.cssText = "border:none;background:none;font-size:13px;font-weight:700;color:var(--ink-soft);-webkit-appearance:none;appearance:none;cursor:pointer;max-width:72px;text-align:right;";
       populateDurSelect(durSel);
-      durSel.value = obj.duration != null ? String(obj.duration) : "";
+      // For the first item, use task.selfDuration (independent of card timeline duration)
+      const durProp = isFirst ? "selfDuration" : "duration";
+      const durObj  = isFirst ? task : obj;
+      durSel.value = durObj[durProp] != null ? String(durObj[durProp]) : "";
       if(!durSel.value) durSel.selectedIndex = 0;
       durSel.addEventListener("change", function(){
         const v = parseInt(durSel.value, 10);
-        obj.duration = v > 0 ? v : null;
+        durObj[durProp] = v > 0 ? v : null;
         save("dl_schedule", schedule);
         renderSchedule();
       });
@@ -1332,7 +1336,7 @@
           if(task.subtasks && task.subtasks.length){
             const promoted = task.subtasks.splice(0,1)[0];
             task.text = promoted.text;
-            task.duration = promoted.duration;
+            task.selfDuration = promoted.duration || null;
             task.done = promoted.done;
           } else {
             const list = schedule[activeTaskDayKey] || [];
