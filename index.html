@@ -1003,60 +1003,89 @@
       const endLabel   = em !== null ? formatTime(minutesToTimeStr(em)) : "";
       const durLabel   = task.duration ? (task.duration < 60 ? task.duration+" min" : task.duration === 60 ? "1 hr" : task.duration === 90 ? "1.5 hr" : "2 hr") : "";
 
-      card.innerHTML =
-        '<div class="task-time-bar">'+
-          '<div class="task-time-range">'+
-            (startLabel ? '<span class="time-start">'+startLabel+'</span>' : '')+
-            (startLabel && endLabel ? '<span class="time-arrow">→</span>' : '')+
-            (endLabel ? '<span class="time-end">'+endLabel+'</span>' : '')+
-            (!startLabel && !endLabel ? '<span class="time-unset">No time set</span>' : '')+
-          '</div>'+
-          (durLabel ? '<span class="task-meta-dur">'+durLabel+'</span>' : '')+
+      // Time bar
+      const timeBar = document.createElement("div");
+      timeBar.className = "task-time-bar";
+      timeBar.innerHTML =
+        '<div class="task-time-range">'+
+          (startLabel ? '<span class="time-start">'+startLabel+'</span>' : '')+
+          (startLabel && endLabel ? '<span class="time-arrow">→</span>' : '')+
+          (endLabel ? '<span class="time-end">'+endLabel+'</span>' : '')+
+          (!startLabel && !endLabel ? '<span class="time-unset">No time set</span>' : '')+
         '</div>'+
-        '<div class="task-main-row">'+
-          '<button class="checkbox js-item-check '+(task.done?"done":"")+'" data-si="-1">'+(task.done?"✓":"")+'</button>'+
-          '<div style="flex:1;min-width:0;">'+
-            '<div class="task-text '+(task.done?"done":"")+'">'+escapeHtml(task.text)+'</div>'+
-            (task.selfDuration ? '<div class="task-meta">'+durLabel(task.selfDuration)+'</div>' : '')+
-            (metaBits.length ? '<div class="task-meta">'+metaBits.join("  ")+'</div>' : "")+
-          '</div>'+
-          '<button class="task-del">✕</button>'+
-        '</div>'+
-        (subs.length ? '<div class="card-subtask-rows">'+subs.map(function(s,si){
-          return '<div class="task-main-row card-subtask-item">'+
-            '<button class="checkbox js-item-check '+(s.done?"done":"")+'" data-si="'+si+'">'+(s.done?"✓":"")+'</button>'+
-            '<div style="flex:1;min-width:0;">'+
-              '<div class="task-text '+(s.done?"done":"")+'">'+escapeHtml(s.text)+'</div>'+
-              (s.duration ? '<div class="task-meta">'+(s.duration<60?s.duration+' min':s.duration===60?'1 hr':s.duration===90?'1.5 hr':'2 hr')+'</div>' : '')+
-            '</div>'+
-          '</div>';
-        }).join('')+'</div>' : '');
+        (durLabel ? '<span class="task-meta-dur">'+durLabel+'</span>' : '');
+      card.appendChild(timeBar);
 
-      card.querySelectorAll(".js-item-check").forEach(function(btn){
-        btn.addEventListener("click", function(e){
+      // Build an item row (obj = task or subtask, deleteItem = fn to call on confirmed delete)
+      function makeCardItemRow(obj, extraMeta, deleteItem, isNotFirst){
+        const row = document.createElement("div");
+        row.className = "task-main-row" + (isNotFirst ? " card-subtask-item" : "");
+
+        const chk = document.createElement("button");
+        chk.className = "checkbox" + (obj.done ? " done" : "");
+        chk.textContent = obj.done ? "✓" : "";
+        chk.addEventListener("click", function(e){
           e.stopPropagation();
-          const si = parseInt(btn.dataset.si, 10);
-          if(si === -1){ task.done = !task.done; }
-          else { task.subtasks[si].done = !task.subtasks[si].done; }
+          obj.done = !obj.done;
           save("dl_schedule", schedule);
           renderSchedule();
         });
-      });
-      const delBtn = card.querySelector(".task-del");
-      delBtn.addEventListener("click", function(e){
-        e.stopPropagation();
-        if(!delBtn.classList.contains("confirm")){
-          delBtn.classList.add("confirm");
-          delBtn.textContent = "Sure?";
-          setTimeout(function(){ delBtn.classList.remove("confirm"); delBtn.textContent="✕"; }, 2500);
-          return;
-        }
+
+        const body = document.createElement("div");
+        body.style.cssText = "flex:1;min-width:0;";
+        body.innerHTML = '<div class="task-text'+(obj.done?" done":"")+'">'+escapeHtml(obj.text)+'</div>'+
+          (extraMeta ? '<div class="task-meta">'+extraMeta+'</div>' : '');
+
+        const del = document.createElement("button");
+        del.className = "task-del";
+        del.textContent = "✕";
+        del.addEventListener("click", function(e){
+          e.stopPropagation();
+          if(!del.classList.contains("confirm")){
+            del.classList.add("confirm"); del.textContent = "Sure?";
+            setTimeout(function(){ del.classList.remove("confirm"); del.textContent = "✕"; }, 2500);
+            return;
+          }
+          deleteItem();
+        });
+
+        row.appendChild(chk); row.appendChild(body); row.appendChild(del);
+        return row;
+      }
+
+      function deleteWholeCard(){
         const list = schedule[key] || [];
         const i = list.findIndex(function(t){ return t.id === task.id; });
-        if(i>-1) list.splice(i,1);
+        if(i > -1) list.splice(i, 1);
         save("dl_schedule", schedule);
         renderSchedule();
+      }
+
+      // Main item row
+      const mainMeta = [
+        task.selfDuration ? durLabel(task.selfDuration) : "",
+        metaBits.join("  ")
+      ].filter(Boolean).join("  ");
+      card.appendChild(makeCardItemRow(task, mainMeta, function(){
+        if(subs.length){
+          // promote first subtask
+          const p = subs.splice(0,1)[0];
+          task.text = p.text; task.selfDuration = p.duration||null; task.done = p.done;
+          save("dl_schedule", schedule); renderSchedule();
+        } else {
+          deleteWholeCard();
+        }
+      }, false));
+
+      // Subtask rows
+      subs.forEach(function(s, si){
+        const subMeta = s.duration ? durLabel(s.duration) : "";
+        card.appendChild(makeCardItemRow(s, subMeta, function(){
+          subs.splice(si, 1);
+          save("dl_schedule", schedule); renderSchedule();
+        }, true));
       });
+
       card.addEventListener("click", function(e){
         if(e.target.closest("button")) return;
         openTaskDetail(key, task.id);
@@ -1327,7 +1356,6 @@
         const v = parseInt(durSel.value, 10);
         durObj[durProp] = v > 0 ? v : null;
         save("dl_schedule", schedule);
-        renderSchedule();
       });
 
       const del = document.createElement("button");
@@ -1336,22 +1364,28 @@
       del.addEventListener("click", function(e){
         e.stopPropagation();
         if(isFirst){
-          // Promote next item up; if none left, don't delete (use trash btn)
           if(task.subtasks && task.subtasks.length){
             const promoted = task.subtasks.splice(0,1)[0];
             task.text = promoted.text;
             task.selfDuration = promoted.duration || null;
             task.done = promoted.done;
+            save("dl_schedule", schedule);
+            renderTaskItems(); renderSchedule();
           } else {
-            return; // last item — use trash button to delete whole card
+            // last item — delete whole card
+            const list = schedule[activeTaskDayKey] || [];
+            const i = list.findIndex(function(t){ return t.id === task.id; });
+            if(i > -1) list.splice(i, 1);
+            save("dl_schedule", schedule);
+            taskOverlay.classList.remove("open");
+            renderSchedule();
           }
         } else {
           const i = (task.subtasks||[]).findIndex(function(s){ return s.id === obj.id; });
-          if(i>-1) task.subtasks.splice(i,1);
+          if(i > -1) task.subtasks.splice(i, 1);
+          save("dl_schedule", schedule);
+          renderTaskItems(); renderSchedule();
         }
-        save("dl_schedule", schedule);
-        renderTaskItems();
-        renderSchedule();
       });
 
       row.appendChild(check);
