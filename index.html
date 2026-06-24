@@ -212,6 +212,16 @@
     width:100%;border:1.5px dashed var(--line);background:none;color:var(--accent-schedule);
     font-weight:800;font-size:14px;border-radius:14px;padding:12px;margin-top:4px;
   }
+  .dur-row{
+    display:flex;align-items:center;gap:8px;margin-bottom:14px;
+    background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;
+  }
+  .dur-row .dur-label{font-size:14px;font-weight:700;color:var(--ink-soft);flex:1;}
+  .dur-row input{
+    width:64px;border:none;background:none;font-size:15px;font-weight:700;
+    color:var(--ink);text-align:right;padding:0;
+  }
+  .dur-row .dur-unit{font-size:13px;color:var(--ink-faint);font-weight:700;}
   .task-notes{
     width:100%;min-height:90px;border:1px solid var(--line);background:var(--card);
     border-radius:14px;padding:12px 14px;font-size:15px;color:var(--ink);
@@ -248,7 +258,8 @@
     <div class="list" id="sched-list"></div>
     <div class="add-bar">
       <input type="text" id="sched-input" placeholder="Add a task…" />
-      <select id="sched-time" style="flex:0 0 118px;"></select>
+      <select id="sched-time" style="flex:0 0 100px;"></select>
+      <input type="number" inputmode="numeric" id="sched-dur" placeholder="min" style="flex:0 0 52px;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:12px 8px;font-size:14px;font-weight:700;color:var(--ink);text-align:center;" />
       <button id="sched-add">Add</button>
     </div>
   </main>
@@ -311,6 +322,11 @@
     <div class="sheet-header">
       <h2 id="task-sheet-title">Task</h2>
       <button class="sheet-icon-btn" id="task-sheet-close">✕</button>
+    </div>
+    <div class="dur-row">
+      <span class="dur-label">Duration</span>
+      <input type="number" inputmode="numeric" id="task-dur-input" placeholder="—" />
+      <span class="dur-unit">min</span>
     </div>
     <textarea id="task-notes" class="task-notes" placeholder="Add notes or useful info…"></textarea>
     <div class="photo-grid" id="task-photo-grid"></div>
@@ -665,33 +681,49 @@
   const schedListEl = document.getElementById("sched-list");
   const schedLabelEl = document.getElementById("sched-date-label");
 
+  function minutesToTimeStr(totalMin){
+    totalMin = ((Math.round(totalMin) % 1440) + 1440) % 1440;
+    return pad(Math.floor(totalMin/60))+":"+pad(totalMin%60);
+  }
+
   function renderSchedule(){
     renderStrip(schedStripEl, renderSchedule);
     schedLabelEl.textContent = fmtLabel(selectedDate);
     const key = dateKey(selectedDate);
-    const stored = schedule[key] || [];
-    const items = stored.slice().sort(function(a,b){
-      const av = a.time ? timeToMinutes(a.time) : Infinity;
-      const bv = b.time ? timeToMinutes(b.time) : Infinity;
-      return av - bv;
+    const items = (schedule[key] || []).slice();
+
+    // Compute cascading display start times (manual order respected)
+    let prevEndMin = null;
+    const dispStartMin = items.map(function(task){
+      let startMin = null;
+      if(task.time){ startMin = timeToMinutes(task.time); }
+      else if(prevEndMin !== null){ startMin = prevEndMin; }
+      prevEndMin = (startMin !== null && task.duration) ? startMin + task.duration : null;
+      return startMin;
     });
+
     schedListEl.innerHTML = "";
     if(items.length === 0){
       schedListEl.innerHTML = '<div class="empty-state">Nothing planned yet.<br>Add a task below.</div>';
       return;
     }
-    items.forEach(function(task){
+    items.forEach(function(task, idx){
       const card = document.createElement("div");
       card.className = "card task-card reorderable";
       card.dataset.id = task.id;
       const metaBits = [];
       if(task.notes) metaBits.push("📝");
       if(task.images && task.images.length) metaBits.push("📷 "+task.images.length);
+      const sm = dispStartMin[idx];
+      const timeLabel = sm !== null ? formatTime(minutesToTimeStr(sm)) : "";
+      const durLabel = task.duration ? task.duration+" min" : "";
+      const timeLine = timeLabel && durLabel ? timeLabel+" · "+durLabel
+                     : timeLabel || durLabel;
       card.innerHTML =
         '<button class="checkbox '+(task.done?"done":"")+'">'+(task.done?"✓":"")+'</button>'+
         '<div style="flex:1;">'+
           '<div class="task-text '+(task.done?"done":"")+'">'+escapeHtml(task.text)+'</div>'+
-          (task.time ? '<div class="task-time">'+formatTime(task.time)+'</div>' : "")+
+          (timeLine ? '<div class="task-time">'+timeLine+'</div>' : "")+
           (metaBits.length ? '<div class="task-meta">'+metaBits.join("  ")+'</div>' : "")+
         '</div>'+
         '<button class="task-del">✕</button>';
@@ -743,13 +775,16 @@
   function addTask(){
     const textInput = document.getElementById("sched-input");
     const timeInput = document.getElementById("sched-time");
+    const durInput = document.getElementById("sched-dur");
     const text = textInput.value.trim();
     if(!text) return;
+    const durVal = parseInt(durInput.value, 10);
+    const duration = durVal > 0 ? durVal : null;
     const key = dateKey(selectedDate);
     if(!schedule[key]) schedule[key] = [];
-    schedule[key].push({ id: uid(), text: text, time: timeInput.value || null, done: false });
+    schedule[key].push({ id: uid(), text: text, time: timeInput.value || null, duration: duration, done: false });
     save("dl_schedule", schedule);
-    textInput.value = ""; timeInput.value = "";
+    textInput.value = ""; timeInput.value = ""; durInput.value = "";
     renderSchedule();
   }
 
@@ -782,6 +817,7 @@
   /* ---------- task detail sheet (notes + photos) ---------- */
   const taskOverlay = document.getElementById("task-overlay");
   const taskNotesEl = document.getElementById("task-notes");
+  const taskDurInput = document.getElementById("task-dur-input");
   const taskTitleEl = document.getElementById("task-sheet-title");
   const taskPhotoGrid = document.getElementById("task-photo-grid");
   const taskPhotoInput = document.getElementById("task-photo-input");
@@ -799,6 +835,7 @@
     if(!task) return;
     taskTitleEl.textContent = task.text;
     taskNotesEl.value = task.notes || "";
+    taskDurInput.value = task.duration != null ? task.duration : "";
     taskPhotoError.textContent = "";
     renderTaskPhotos();
     taskOverlay.classList.add("open");
@@ -820,6 +857,14 @@
       taskPhotoGrid.appendChild(thumb);
     });
   }
+
+  taskDurInput.addEventListener("input", function(){
+    const task = currentTask();
+    if(!task) return;
+    const v = parseInt(taskDurInput.value, 10);
+    task.duration = v > 0 ? v : null;
+    save("dl_schedule", schedule);
+  });
 
   taskNotesEl.addEventListener("input", function(){
     const task = currentTask();
