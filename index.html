@@ -121,12 +121,15 @@
     display:flex;flex-direction:column;align-items:center;gap:0;padding:0;
   }
   .tl-line{width:2px;height:10px;background:var(--line);flex-shrink:0;}
+  .tl-connector.tight .tl-line{height:3px;}
   .tl-insert-btn{
     display:flex;align-items:center;gap:6px;
     background:none;border:1.5px dashed var(--line);border-radius:20px;
     padding:3px 10px 3px 6px;cursor:pointer;color:var(--ink-faint);
-    transition:border-color .15s,color .15s;
+    transition:border-color .15s,color .15s,opacity .15s;
   }
+  .tl-connector.tight .tl-insert-btn{padding:2px 7px;opacity:.45;border-style:solid;border-width:1px;}
+  .tl-connector.tight .tl-insert-btn:active{opacity:1;border-color:var(--accent-schedule);color:var(--accent-schedule);}
   .tl-insert-btn:active{border-color:var(--accent-schedule);color:var(--accent-schedule);}
   .tl-insert-icon{font-size:14px;font-weight:800;line-height:1;}
   .tl-gap-time{font-size:12px;font-weight:700;}
@@ -904,12 +907,16 @@
         (wt ? '<span class="tl-gap-time">'+formatTime(wt)+'</span>' : '')+
       '</button>'+
       '<div class="tl-line"></div>';
-    wakeupConnector.querySelector(".tl-insert-btn").addEventListener("click", function(e){
-      e.stopPropagation();
+    (function(){
       const gapMin = (wt && items.length > 0 && dispStartMin[0] !== null)
         ? dispStartMin[0] - timeToMinutes(wt) : null;
-      openInsertSheet(key, 0, wt, gapMin > 0 ? snapDuration(gapMin) : null);
-    });
+      const tight = gapMin !== null && gapMin <= 0;
+      if(tight) wakeupConnector.classList.add("tight");
+      wakeupConnector.querySelector(".tl-insert-btn").addEventListener("click", function(e){
+        e.stopPropagation();
+        openInsertSheet(key, 0, wt, gapMin > 0 ? snapDuration(gapMin) : null);
+      });
+    })();
     schedListEl.appendChild(wakeupConnector);
 
     if(typeof renderAlldayList === "function") renderAlldayList();
@@ -980,9 +987,12 @@
       // Timeline connector with insert button
       const smLocal = dispStartMin[idx];
       const emLocal = (smLocal !== null && task.duration) ? smLocal + task.duration : smLocal;
+      const nextStart = (idx + 1 < dispStartMin.length) ? dispStartMin[idx + 1] : null;
+      const gapMin = (emLocal !== null && nextStart !== null) ? nextStart - emLocal : null;
+      const tight = gapMin !== null && gapMin <= 0;
       const connector = document.createElement("div");
-      connector.className = "tl-connector";
-      const gapLabel = emLocal !== null ? formatTime(minutesToTimeStr(emLocal)) : "";
+      connector.className = tight ? "tl-connector tight" : "tl-connector";
+      const gapLabel = (!tight && emLocal !== null) ? formatTime(minutesToTimeStr(emLocal)) : "";
       connector.innerHTML =
         '<div class="tl-line"></div>'+
         '<button class="tl-insert-btn" title="Add task here">'+
@@ -993,8 +1003,6 @@
       connector.querySelector(".tl-insert-btn").addEventListener("click", function(e){
         e.stopPropagation();
         const sugTime = emLocal !== null ? minutesToTimeStr(emLocal) : "";
-        const nextStart = (idx + 1 < dispStartMin.length) ? dispStartMin[idx + 1] : null;
-        const gapMin = (emLocal !== null && nextStart !== null) ? nextStart - emLocal : null;
         openInsertSheet(key, idx + 1, sugTime, gapMin > 0 ? snapDuration(gapMin) : null);
       });
 
@@ -1344,7 +1352,22 @@
     const time = insertTimeSel.value || null;
     if(!schedule[insertDayKey]) schedule[insertDayKey] = [];
     const list = schedule[insertDayKey];
-    list.splice(insertAfterIndex, 0, { id: uid(), text: text, time: time, duration: duration, done: false });
+
+    // Tasks that will be pushed back (timed, after insertion point)
+    const timedTasks = list.filter(function(t){ return !t.allDay; });
+    const tasksToShift = timedTasks.slice(insertAfterIndex);
+
+    list.splice(insertAfterIndex, 0, { id: uid(), text: text, time: time, duration: duration, done: false, allDay: false });
+
+    // Push subsequent timed tasks forward by the new task's duration
+    if(duration){
+      tasksToShift.forEach(function(task){
+        if(task.time){
+          task.time = minutesToTimeStr(timeToMinutes(task.time) + duration);
+        }
+      });
+    }
+
     save("dl_schedule", schedule);
     insertOverlay.classList.remove("open");
     renderSchedule();
