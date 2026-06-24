@@ -288,6 +288,10 @@
     font-weight:800;font-size:14px;border-radius:14px;padding:12px;margin-top:4px;
   }
   .wk-est-time{text-align:center;font-size:13px;font-weight:700;color:var(--ink-faint);padding:10px 0 4px;}
+  .wk-ex-dur{font-size:12px;font-weight:700;color:var(--ink-faint);margin-right:4px;white-space:nowrap;}
+  .wk-rest-connector{display:flex;justify-content:center;padding:4px 0;cursor:pointer;}
+  .wk-rest-label{font-size:12px;font-weight:600;color:var(--ink-faint);background:var(--line);border-radius:8px;padding:3px 10px;}
+  .wk-rest-connector:active .wk-rest-label{opacity:0.6;}
   .wk-add-more-btn{
     width:100%;border:1.5px dashed var(--line);background:none;color:var(--accent-workout);
     font-weight:800;font-size:14px;border-radius:14px;padding:13px;margin-top:4px;cursor:pointer;
@@ -640,6 +644,30 @@
   </div>
 </div>
 
+<!-- REST BETWEEN EXERCISES SHEET -->
+<div class="overlay" id="wk-rest-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h2 id="wk-rest-title">Rest After Exercise</h2>
+      <button class="sheet-icon-btn" id="wk-rest-close">✕</button>
+    </div>
+    <p style="font-size:14px;color:var(--ink-soft);margin:0 0 16px 0;">Rest before next exercise</p>
+    <select id="wk-rest-select" style="width:100%;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:14px;font-size:15px;font-weight:700;color:var(--ink);-webkit-appearance:none;appearance:none;margin-bottom:16px;">
+      <option value="">Default</option>
+      <option value="30">30 sec</option>
+      <option value="60">1 min</option>
+      <option value="90">1.5 min</option>
+      <option value="120">2 min</option>
+      <option value="150">2.5 min</option>
+      <option value="180">3 min</option>
+      <option value="240">4 min</option>
+      <option value="300">5 min</option>
+    </select>
+    <button id="wk-rest-confirm" style="width:100%;border:none;background:var(--accent-workout);color:#fff;font-weight:800;font-size:16px;border-radius:14px;padding:15px;">Set Rest</button>
+  </div>
+</div>
+
 <!-- WAKE UP TIME SHEET -->
 <div class="overlay" id="wakeup-overlay">
   <div class="sheet">
@@ -853,6 +881,7 @@
       wkListEl.innerHTML = '<div class="empty-state">No exercises yet for this day.<br>Add one below to get started.</div>';
       return;
     }
+    const restEx = settings.wkRestBetweenExercises || 120;
     items.forEach(function(ex, idx){
       const card = document.createElement("div");
       card.className = "card reorderable";
@@ -860,14 +889,25 @@
       const setsDone = ex.sets.length;
       const repsStr = exRepsLabel(ex.sets);
       const subLine = setsDone + ' Set' + (setsDone===1?"":"s") + (repsStr ? ' · ' + repsStr : '');
+      const durSec = exerciseDuration(ex);
       card.innerHTML =
         '<div class="order-circle">'+(idx+1)+'</div>'+
         '<div class="card-body"><div class="name">'+escapeHtml(ex.name)+'</div>'+
         '<div class="sub">'+subLine+'</div></div>'+
         (ex.notes ? '<div style="font-size:12px;color:var(--ink-faint);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;">📝 '+escapeHtml(ex.notes.split('\n')[0])+'</div>' : '')+
+        (durSec > 0 ? '<div class="wk-ex-dur">'+fmtDuration(durSec)+'</div>' : '')+
         '<div class="chevron">›</div>';
       card.addEventListener("click", function(){ openSetEditor(key, ex.id); });
       wkListEl.appendChild(card);
+      if(idx < items.length - 1){
+        const afterRest = ex.restAfter != null ? ex.restAfter : restEx;
+        const restEl = document.createElement("div");
+        restEl.className = "wk-rest-connector";
+        restEl.dataset.exId = ex.id;
+        restEl.innerHTML = '<span class="wk-rest-label">'+fmtDuration(afterRest)+' rest</span>';
+        restEl.addEventListener("click", function(){ openRestEditor(key, ex.id); });
+        wkListEl.appendChild(restEl);
+      }
     });
     // estimated workout time
     const totalSec = estimatedWorkoutDuration(items);
@@ -905,18 +945,25 @@
     return v !== null ? v + " reps" : "";
   }
 
-  function estimatedWorkoutDuration(items){
-    if(!items || !items.length) return null;
+  function exerciseDuration(ex){
     const setDur = settings.wkSetDuration || 45;
     const restSets = settings.wkRestBetweenSets || 90;
+    const n = ex.sets.length;
+    if(n === 0) return 0;
+    const exRest = ex.restBetweenSets != null ? ex.restBetweenSets : restSets;
+    return n * setDur + (n - 1) * exRest;
+  }
+
+  function estimatedWorkoutDuration(items){
+    if(!items || !items.length) return null;
     const restEx = settings.wkRestBetweenExercises || 120;
     let total = 0;
     items.forEach(function(ex, i){
-      const n = ex.sets.length;
-      if(n === 0) return;
-      const exRest = ex.restBetweenSets != null ? ex.restBetweenSets : restSets;
-      total += n * setDur + (n - 1) * exRest;
-      if(i < items.length - 1) total += restEx;
+      total += exerciseDuration(ex);
+      if(i < items.length - 1){
+        const afterRest = ex.restAfter != null ? ex.restAfter : restEx;
+        total += afterRest;
+      }
     });
     return total;
   }
@@ -1849,6 +1896,37 @@
       save("dl_settings", settings);
       renderWorkout();
     });
+  });
+
+  /* ---------- rest between exercises sheet ---------- */
+  const wkRestOverlay = document.getElementById("wk-rest-overlay");
+  const wkRestSel = document.getElementById("wk-rest-select");
+  let restEditorExId = null, restEditorDayKey = null;
+
+  function openRestEditor(dayKey, exId){
+    restEditorDayKey = dayKey; restEditorExId = exId;
+    const list = workouts[dayKey] || [];
+    const ex = list.find(function(e){ return e.id === exId; });
+    if(!ex) return;
+    document.getElementById("wk-rest-title").textContent = "Rest After " + ex.name;
+    wkRestSel.value = ex.restAfter != null ? String(ex.restAfter) : "";
+    wkRestOverlay.classList.add("open");
+  }
+  document.getElementById("wk-rest-close").addEventListener("click", function(){
+    wkRestOverlay.classList.remove("open");
+  });
+  wkRestOverlay.addEventListener("click", function(e){
+    if(e.target === wkRestOverlay) wkRestOverlay.classList.remove("open");
+  });
+  document.getElementById("wk-rest-confirm").addEventListener("click", function(){
+    const list = workouts[restEditorDayKey] || [];
+    const ex = list.find(function(e){ return e.id === restEditorExId; });
+    if(!ex) return;
+    const v = wkRestSel.value;
+    ex.restAfter = v ? parseInt(v, 10) : null;
+    save("dl_workouts", workouts);
+    wkRestOverlay.classList.remove("open");
+    renderWorkout();
   });
 
   /* ---------- wake-up time sheet ---------- */
