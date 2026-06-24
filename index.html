@@ -156,6 +156,7 @@
   .tl-insert-btn:active{border-color:var(--accent-schedule);color:var(--accent-schedule);}
   .tl-insert-icon{font-size:14px;font-weight:800;line-height:1;}
   .tl-gap-time{font-size:12px;font-weight:700;}
+  .tl-free-time{font-size:10px;font-weight:500;opacity:0.55;}
   .checkbox{
     width:24px;height:24px;border-radius:50%;border:2px solid var(--line);
     flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;
@@ -1115,11 +1116,13 @@
       const connector = document.createElement("div");
       connector.className = tight ? "tl-connector tight" : "tl-connector";
       const gapLabel = (!tight && emLocal !== null) ? formatTime(minutesToTimeStr(emLocal)) : "";
+      const freeLabel = (gapMin !== null && gapMin > 60) ? formatFreeTime(gapMin) + " free" : "";
       connector.innerHTML =
         '<div class="tl-line"></div>'+
         '<button class="tl-insert-btn" title="Add task here">'+
           '<span class="tl-insert-icon">+</span>'+
           (gapLabel ? '<span class="tl-gap-time">'+gapLabel+'</span>' : '')+
+          (freeLabel ? '<span class="tl-free-time">'+freeLabel+'</span>' : '')+
         '</button>'+
         '<div class="tl-line"></div>';
       connector.querySelector(".tl-insert-btn").addEventListener("click", function(e){
@@ -1137,6 +1140,15 @@
   function timeToMinutes(t){
     const p = t.split(":");
     return parseInt(p[0],10)*60+parseInt(p[1],10);
+  }
+
+  function formatFreeTime(min){
+    const rounded = Math.round(min / 15) * 15;
+    const h = Math.floor(rounded / 60);
+    const m = rounded % 60;
+    if(h > 0 && m > 0) return h + "h " + m + "m";
+    if(h > 0) return h + "h";
+    return m + "m";
   }
 
   function formatTime(t){
