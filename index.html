@@ -515,6 +515,11 @@
   .hist-detail-bp-sets{font-size:14px;font-weight:800;color:var(--ink);white-space:nowrap;}
   .hist-jump-btn{display:block;width:100%;border:none;background:var(--accent-schedule);color:#fff;font-weight:800;font-size:15px;border-radius:14px;padding:14px;cursor:pointer;margin-top:14px;}
   .hist-card{cursor:pointer;}
+  .hist-detail-ex-item{padding:9px 0;border-bottom:1px solid var(--line);}
+  .hist-detail-ex-name{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:6px;}
+  .hist-detail-set-pills{display:flex;flex-wrap:wrap;gap:5px;}
+  .hist-detail-set-pill{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:4px 9px;font-size:12px;font-weight:600;color:var(--ink-soft);}
+  .hist-detail-set-pill.done{color:var(--ink);border-color:var(--accent-workout);background:var(--accent-workout-soft);}
 </style>
 </head>
 <body>
@@ -3595,7 +3600,14 @@
       return sum + ex.sets.filter(function(s){ return s.done; }).length;
     }, 0);
     const exercises = items.map(function(ex){
-      return { name: ex.name, tagIds: (ex.tagIds || []).slice(), sets: ex.sets.length, doneSets: ex.sets.filter(function(s){ return s.done; }).length };
+      return {
+        name: ex.name,
+        tagIds: (ex.tagIds || []).slice(),
+        notes: ex.notes || "",
+        sets: ex.sets.map(function(s){
+          return { weight: s.weight, repsMin: s.repsMin, repsMax: s.repsMax, repsActual: s.repsActual, done: s.done };
+        })
+      };
     });
     const derivedTagIds = [];
     exercises.forEach(function(ex){
@@ -3724,6 +3736,17 @@
 
   /* ================= HISTORY DETAIL SHEET ================= */
 
+  function fmtSetPill(s){
+    const reps = s.repsActual != null ? s.repsActual :
+                 (s.repsMin != null && s.repsMax != null) ?
+                   (s.repsMin === s.repsMax ? s.repsMin : s.repsMin+"–"+s.repsMax) :
+                   (s.repsMin != null ? s.repsMin : s.repsMax != null ? s.repsMax : null);
+    if(s.weight != null && reps != null) return s.weight+" lbs × "+reps;
+    if(s.weight != null) return s.weight+" lbs";
+    if(reps != null) return reps+" reps";
+    return "—";
+  }
+
   function openHistDetail(entry){
     tags = loadArr("dl_tags");
     document.getElementById("hist-detail-name").textContent = entry.name;
@@ -3745,8 +3768,9 @@
     const exercises = entry.exercises || [];
     const tagSetCounts = {};
     exercises.forEach(function(ex){
+      const setCount = Array.isArray(ex.sets) ? ex.sets.length : (ex.sets || 0);
       (ex.tagIds || []).forEach(function(tagId){
-        tagSetCounts[tagId] = (tagSetCounts[tagId]||0) + ex.sets;
+        tagSetCounts[tagId] = (tagSetCounts[tagId]||0) + setCount;
       });
     });
     const usedTagIds = Object.keys(tagSetCounts);
@@ -3762,6 +3786,27 @@
         '</div>';
       });
       html += '</div>';
+    }
+    if(exercises.length){
+      html += '<span class="hist-detail-section-lbl">Exercises</span>';
+      exercises.forEach(function(ex){
+        const sets = Array.isArray(ex.sets) ? ex.sets : [];
+        const exTagDots = (ex.tagIds || []).map(function(id){ return tags.find(function(t){ return t.id===id; }); }).filter(Boolean);
+        let dots = exTagDots.map(function(t){ return '<span style="width:8px;height:8px;border-radius:50%;background:'+t.color+';display:inline-block;margin-right:3px;flex-shrink:0;"></span>'; }).join("");
+        html += '<div class="hist-detail-ex-item">'+
+          '<div class="hist-detail-ex-name">'+dots+escapeHtml(ex.name)+'</div>'+
+          '<div class="hist-detail-set-pills">';
+        if(sets.length){
+          sets.forEach(function(s, i){
+            html += '<span class="hist-detail-set-pill'+(s.done?' done':'')+'">'+(i+1)+'. '+escapeHtml(fmtSetPill(s))+'</span>';
+          });
+        } else {
+          html += '<span class="hist-detail-set-pill">No set data</span>';
+        }
+        html += '</div>';
+        if(ex.notes) html += '<div style="font-size:12px;color:var(--ink-faint);margin-top:5px;">'+escapeHtml(ex.notes)+'</div>';
+        html += '</div>';
+      });
     }
     body.innerHTML = html;
     const jumpBtn = document.getElementById("hist-detail-jump");
