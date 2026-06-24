@@ -293,6 +293,8 @@
   .wk-start-btn:active{opacity:.8;}
   .wk-pause-btn{width:100%;border:1.5px solid var(--accent-workout);background:none;color:var(--accent-workout);font-weight:800;font-size:15px;border-radius:14px;padding:13px;cursor:pointer;margin-bottom:6px;}
   .wk-pause-btn:active{opacity:.6;}
+  .wk-reset-btn{display:block;width:100%;border:none;background:none;color:var(--ink-faint);font-size:13px;font-weight:700;padding:6px;cursor:pointer;text-align:center;}
+  .wk-reset-btn:active{color:var(--danger);}
   .wk-timer-row{display:flex;align-items:baseline;justify-content:center;gap:10px;flex-wrap:wrap;padding:4px 0;}
   .wk-elapsed{font-size:22px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;}
   .wk-timer-stats{font-size:13px;font-weight:600;color:var(--ink-soft);}
@@ -1228,11 +1230,14 @@
         html += '<div class="wk-est-time" style="margin-bottom:4px;">Paused</div>';
         html += '<button class="wk-start-btn" id="wk-timer-btn">▶ Resume</button>';
       }
+      html += '<button class="wk-reset-btn" id="wk-workout-reset">↺ Restart Workout</button>';
     }
     html += '</div>';
     area.innerHTML = html;
     const btn = document.getElementById("wk-timer-btn");
     if(btn) btn.addEventListener("click", isRunning ? pauseTimer : startTimer);
+    const resetBtn = document.getElementById("wk-workout-reset");
+    if(resetBtn) resetBtn.addEventListener("click", resetWorkout);
   }
 
   function startTimer(){
@@ -1256,6 +1261,28 @@
     clearInterval(timerInterval);
     timerInterval = null;
     renderTimerArea();
+  }
+
+  function resetWorkout(){
+    if(!confirm("Restart workout? This will reset the timer and all progress.")) return;
+    clearInterval(timerInterval);
+    timerInterval = null;
+    clearInterval(restCountdownInterval);
+    restCountdownInterval = null;
+    restCountdownState = null;
+    timerState = { dayKey: null, elapsed: 0, startMs: null, running: false };
+    save("dl_timer", timerState);
+    const key = dateKey(selectedDate);
+    const items = workouts[key] || [];
+    items.forEach(function(ex){
+      ex.completedAtElapsed = null;
+      ex.sets.forEach(function(s){
+        s.done = false;
+        s.startedAtElapsed = null;
+      });
+    });
+    save("dl_workouts", workouts);
+    renderWorkout();
   }
 
   function addExercise(){
