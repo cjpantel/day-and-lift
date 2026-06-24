@@ -105,19 +105,31 @@
   .chevron{color:var(--ink-faint);font-size:18px;font-weight:700;}
 
   .task-card{align-items:stretch;}
-  .task-meta-row{display:flex;justify-content:space-between;align-items:center;padding:0 2px 2px 2px;}
-  .task-meta-time{font-size:12px;font-weight:700;color:var(--accent-color);}
+  .task-time-bar{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:0 2px 6px 2px;border-bottom:1px solid var(--line);margin-bottom:6px;
+  }
+  .task-time-range{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;}
+  .time-start{color:var(--accent-color);}
+  .time-arrow{color:var(--ink-faint);font-size:11px;}
+  .time-end{color:var(--ink-soft);}
+  .time-unset{color:var(--ink-faint);font-style:italic;}
   .task-meta-dur{font-size:12px;font-weight:700;color:var(--ink-faint);}
   .task-main-row{display:flex;align-items:center;gap:12px;}
-  .insert-btn{
-    align-self:center;width:26px;height:26px;border-radius:50%;
-    border:1.5px dashed var(--line);background:none;
-    color:var(--ink-faint);font-size:16px;font-weight:700;
-    display:flex;align-items:center;justify-content:center;
-    margin:2px auto;cursor:pointer;line-height:1;
+  /* Timeline connector between cards */
+  .tl-connector{
+    display:flex;flex-direction:column;align-items:center;gap:0;padding:0;
+  }
+  .tl-line{width:2px;height:10px;background:var(--line);flex-shrink:0;}
+  .tl-insert-btn{
+    display:flex;align-items:center;gap:6px;
+    background:none;border:1.5px dashed var(--line);border-radius:20px;
+    padding:3px 10px 3px 6px;cursor:pointer;color:var(--ink-faint);
     transition:border-color .15s,color .15s;
   }
-  .insert-btn:active{border-color:var(--accent-schedule);color:var(--accent-schedule);}
+  .tl-insert-btn:active{border-color:var(--accent-schedule);color:var(--accent-schedule);}
+  .tl-insert-icon{font-size:14px;font-weight:800;line-height:1;}
+  .tl-gap-time{font-size:12px;font-weight:700;}
   .checkbox{
     width:24px;height:24px;border-radius:50%;border:2px solid var(--line);
     flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;
@@ -804,16 +816,22 @@
     wakeupCard.addEventListener("click", function(){ openWakeupSheet(key); });
     schedListEl.appendChild(wakeupCard);
 
-    // Insert button after wake-up card — suggested time = wake-up time itself
-    const wakeupInsertBtn = document.createElement("button");
-    wakeupInsertBtn.className = "insert-btn";
-    wakeupInsertBtn.textContent = "+";
-    wakeupInsertBtn.addEventListener("click", function(e){
+    // Timeline connector after wake-up card
+    const wt = (settings.wakeupTimes && settings.wakeupTimes[key]) || settings.defaultWakeup || "";
+    const wakeupConnector = document.createElement("div");
+    wakeupConnector.className = "tl-connector";
+    wakeupConnector.innerHTML =
+      '<div class="tl-line"></div>'+
+      '<button class="tl-insert-btn" title="Add task here">'+
+        '<span class="tl-insert-icon">+</span>'+
+        (wt ? '<span class="tl-gap-time">'+formatTime(wt)+'</span>' : '')+
+      '</button>'+
+      '<div class="tl-line"></div>';
+    wakeupConnector.querySelector(".tl-insert-btn").addEventListener("click", function(e){
       e.stopPropagation();
-      const wt = (settings.wakeupTimes && settings.wakeupTimes[key]) || settings.defaultWakeup || "";
       openInsertSheet(key, 0, wt);
     });
-    schedListEl.appendChild(wakeupInsertBtn);
+    schedListEl.appendChild(wakeupConnector);
 
     if(items.length === 0) return;
     items.forEach(function(task, idx){
@@ -832,16 +850,21 @@
       if(task.images && task.images.length) metaBits.push("📷 "+task.images.length);
 
       const sm = dispStartMin[idx];
-      const timeLabel = sm !== null ? formatTime(minutesToTimeStr(sm)) : "";
-      const durLabel = task.duration ? (task.duration < 60 ? task.duration+" min" : task.duration === 60 ? "1 hr" : task.duration === 90 ? "1.5 hr" : "2 hr") : "";
+      const em = (sm !== null && task.duration) ? sm + task.duration : null;
+      const startLabel = sm !== null ? formatTime(minutesToTimeStr(sm)) : "";
+      const endLabel   = em !== null ? formatTime(minutesToTimeStr(em)) : "";
+      const durLabel   = task.duration ? (task.duration < 60 ? task.duration+" min" : task.duration === 60 ? "1 hr" : task.duration === 90 ? "1.5 hr" : "2 hr") : "";
 
       card.innerHTML =
-        // top meta row: time left, duration right
-        '<div class="task-meta-row">'+
-          '<span class="task-meta-time">'+(timeLabel || "")+'</span>'+
-          '<span class="task-meta-dur">'+(durLabel || "")+'</span>'+
+        '<div class="task-time-bar">'+
+          '<div class="task-time-range">'+
+            (startLabel ? '<span class="time-start">'+startLabel+'</span>' : '')+
+            (startLabel && endLabel ? '<span class="time-arrow">→</span>' : '')+
+            (endLabel ? '<span class="time-end">'+endLabel+'</span>' : '')+
+            (!startLabel && !endLabel ? '<span class="time-unset">No time set</span>' : '')+
+          '</div>'+
+          (durLabel ? '<span class="task-meta-dur">'+durLabel+'</span>' : '')+
         '</div>'+
-        // main row: checkbox + text + delete
         '<div class="task-main-row">'+
           '<button class="checkbox '+(task.done?"done":"")+'">'+(task.done?"✓":"")+'</button>'+
           '<div style="flex:1;min-width:0;">'+
@@ -874,20 +897,26 @@
       });
       card.addEventListener("click", function(){ openTaskDetail(key, task.id); });
 
-      // insert-below button — suggested time = end of this task
-      const insertBtn = document.createElement("button");
-      insertBtn.className = "insert-btn";
-      insertBtn.textContent = "+";
-      insertBtn.addEventListener("click", function(e){
+      // Timeline connector with insert button
+      const smLocal = dispStartMin[idx];
+      const emLocal = (smLocal !== null && task.duration) ? smLocal + task.duration : smLocal;
+      const connector = document.createElement("div");
+      connector.className = "tl-connector";
+      const gapLabel = emLocal !== null ? formatTime(minutesToTimeStr(emLocal)) : "";
+      connector.innerHTML =
+        '<div class="tl-line"></div>'+
+        '<button class="tl-insert-btn" title="Add task here">'+
+          '<span class="tl-insert-icon">+</span>'+
+          (gapLabel ? '<span class="tl-gap-time">'+gapLabel+'</span>' : '')+
+        '</button>'+
+        '<div class="tl-line"></div>';
+      connector.querySelector(".tl-insert-btn").addEventListener("click", function(e){
         e.stopPropagation();
-        const sm = dispStartMin[idx];
-        const endMin = (sm !== null && task.duration) ? sm + task.duration : sm;
-        const suggested = endMin !== null ? minutesToTimeStr(endMin) : "";
-        openInsertSheet(key, idx + 1, suggested);
+        openInsertSheet(key, idx + 1, emLocal !== null ? minutesToTimeStr(emLocal) : "");
       });
 
       wrapper.appendChild(card);
-      wrapper.appendChild(insertBtn);
+      wrapper.appendChild(connector);
       schedListEl.appendChild(wrapper);
     });
   }
