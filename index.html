@@ -777,6 +777,7 @@
   let timerInterval = null;
   let restCountdownState = null; // { endMs, exId, type: 'set'|'exercise' }
   let restCountdownInterval = null;
+  let expandedExId = null;
 
   /* ---------- shared state ---------- */
   const today = new Date();
@@ -943,7 +944,15 @@
       return;
     }
     const restEx = settings.wkRestBetweenExercises || 120;
-    const activeIdx = items.findIndex(function(ex){ return ex.completedAtElapsed == null; });
+    let activeId = null;
+    if(expandedExId){
+      const pinned = items.find(function(ex){ return ex.id === expandedExId && ex.completedAtElapsed == null; });
+      if(pinned) activeId = pinned.id;
+    }
+    if(!activeId){
+      const first = items.find(function(ex){ return ex.completedAtElapsed == null; });
+      if(first) activeId = first.id;
+    }
     items.forEach(function(ex, idx){
       const card = document.createElement("div");
       const setsDone = ex.sets.length;
@@ -952,7 +961,7 @@
       const durSec = exerciseDuration(ex);
       const isDone = ex.completedAtElapsed != null;
 
-      if(idx === activeIdx){
+      if(ex.id === activeId){
         // ---- expanded active exercise ----
         card.className = "card ex-active-card";
         card.dataset.id = ex.id;
@@ -967,6 +976,11 @@
           '<div class="ex-active-sets" id="ex-active-sets-'+ex.id+'"></div>';
 
         card.querySelector(".chevron").addEventListener("click", function(e){
+          e.stopPropagation();
+          expandedExId = null;
+          renderWorkout();
+        });
+        card.querySelector(".card-body").addEventListener("click", function(e){
           e.stopPropagation();
           openSetEditor(key, ex.id);
         });
@@ -1074,10 +1088,13 @@
               if(cdEl) cdEl.remove();
               if(ex.sets.every(function(x){ return x.done; })){
                 ex.completedAtElapsed = currentTimerElapsed();
+                expandedExId = null;
                 save("dl_workouts", workouts);
                 const afterRest = ex.restAfter != null ? ex.restAfter : restEx;
                 startRestTimer(ex.id, "exercise", afterRest);
-                renderWorkout();
+                const newCd = document.createElement("div");
+                newCd.id = "wk-rest-cd";
+                setsEl.after(newCd);
               } else {
                 const newCd = document.createElement("div");
                 newCd.id = "wk-rest-cd";
@@ -1129,6 +1146,10 @@
           ex.completedAtElapsed = ex.completedAtElapsed != null ? null : currentTimerElapsed();
           save("dl_workouts", workouts);
           renderWorkout();
+        });
+        card.querySelector(".chevron").addEventListener("click", function(e){
+          e.stopPropagation();
+          if(!isDone){ expandedExId = ex.id; renderWorkout(); } else { openSetEditor(key, ex.id); }
         });
         card.addEventListener("click", function(){ openSetEditor(key, ex.id); });
         wkListEl.appendChild(card);
