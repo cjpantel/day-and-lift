@@ -277,6 +277,40 @@
   .wakeup-card .wakeup-label{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-schedule);}
   .wakeup-card .wakeup-time{font-size:18px;font-weight:800;color:var(--ink);}
   .wakeup-card .wakeup-tap{font-size:12px;color:var(--ink-soft);}
+  /* Calendar */
+  .cal-btn{background:var(--line);border:none;width:40px;height:40px;border-radius:14px;display:flex;align-items:center;justify-content:center;color:var(--ink-soft);flex-shrink:0;}
+  .cal-btn:active{background:var(--accent-schedule-soft);}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:12px 0;}
+  .cal-wd{text-align:center;font-size:11px;font-weight:800;color:var(--ink-faint);padding:4px 0;}
+  .cal-day{
+    aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+    border:none;background:none;border-radius:50%;font-size:14px;font-weight:600;color:var(--ink);
+  }
+  .cal-day.other-month{color:var(--ink-faint);}
+  .cal-day.today{border:1.5px solid var(--accent-schedule);color:var(--accent-schedule);}
+  .cal-day.selected{background:var(--accent-schedule);color:#fff;}
+  .cal-day:active{background:var(--accent-schedule-soft);}
+  .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+  .cal-nav h3{font-size:17px;font-weight:800;margin:0;}
+  .cal-nav-btn{background:none;border:none;font-size:22px;color:var(--ink-soft);width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+  .cal-nav-btn:active{background:var(--line);}
+  /* All-day section */
+  #sched-scroll-area{flex:1;overflow-y:auto;display:flex;flex-direction:column;}
+  #sched-allday-section{padding:0 0 4px 0;}
+  .allday-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .allday-label{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);}
+  .allday-add-btn{background:none;border:1.5px solid var(--line);width:24px;height:24px;border-radius:50%;color:var(--ink-faint);font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1;}
+  .allday-input{width:100%;border:1px dashed var(--line);background:none;border-radius:12px;padding:10px 14px;font-size:14px;color:var(--ink);margin-top:6px;display:none;}
+  .allday-input.visible{display:block;}
+  .allday-input::placeholder{color:var(--ink-faint);}
+  .allday-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px 14px;display:flex;align-items:center;gap:10px;margin-bottom:6px;touch-action:pan-y;user-select:none;}
+  .allday-card.dragging{opacity:.3;}
+  .allday-divider{height:1px;background:var(--line);margin:10px 0 14px 0;}
+  /* Drop indicator */
+  .drop-indicator{height:3px;background:var(--accent-schedule);border-radius:2px;margin:4px 0;display:none;}
+  .drop-indicator.visible{display:block;}
+  /* Drag ghost */
+  #drag-ghost{position:fixed;left:18px;right:18px;pointer-events:none;z-index:200;opacity:.92;box-shadow:0 10px 26px rgba(20,20,30,.25);border-radius:14px;background:var(--card);border:1px solid var(--line);padding:11px 14px;display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;color:var(--ink);}
 </style>
 </head>
 <body>
@@ -294,9 +328,30 @@
     </div>
     <div class="day-strip" id="sched-strip"></div>
     <div class="section-label" id="sched-date-label">Today</div>
-    <div class="list" id="sched-list"></div>
+
+    <div id="sched-scroll-area">
+      <!-- all-day section -->
+      <div id="sched-allday-section">
+        <div class="allday-header">
+          <span class="allday-label">ALL DAY</span>
+          <button id="allday-quick-add" class="allday-add-btn">+</button>
+        </div>
+        <div id="sched-allday-list"></div>
+        <input type="text" id="allday-input" class="allday-input" placeholder="Add all-day task…" />
+      </div>
+      <div class="allday-divider"></div>
+
+      <!-- timed section -->
+      <div id="sched-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+
     <div class="add-bar" style="flex-direction:column;gap:8px;">
-      <input type="text" id="sched-input" placeholder="Add a task…" style="width:100%;" />
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="text" id="sched-input" placeholder="Add timed task…" style="flex:1;" />
+        <button id="sched-cal-btn" class="cal-btn" title="Pick date">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+        </button>
+      </div>
       <div style="display:flex;gap:8px;">
         <select id="sched-time" style="flex:1;"></select>
         <select id="sched-dur" style="flex:0 0 120px;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:12px 8px;font-size:14px;font-weight:700;color:var(--ink);-webkit-appearance:none;appearance:none;text-align:center;"></select>
@@ -338,6 +393,23 @@
       Workout
     </button>
   </nav>
+</div>
+
+<!-- CALENDAR SHEET -->
+<div class="overlay" id="cal-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h2>Pick a Date</h2>
+      <button class="sheet-icon-btn" id="cal-close">✕</button>
+    </div>
+    <div class="cal-nav">
+      <button class="cal-nav-btn" id="cal-prev-month">‹</button>
+      <h3 id="cal-month-label"></h3>
+      <button class="cal-nav-btn" id="cal-next-month">›</button>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
 </div>
 
 <!-- SET EDITOR SHEET -->
@@ -789,7 +861,7 @@
     renderStrip(schedStripEl, renderSchedule);
     schedLabelEl.textContent = fmtLabel(selectedDate);
     const key = dateKey(selectedDate);
-    const items = (schedule[key] || []).slice();
+    const items = (schedule[key] || []).filter(function(t){ return !t.allDay; });
 
     // Compute cascading display start times (manual order respected)
     // Seed cascade from wake-up time if no explicit time on first task
@@ -919,6 +991,7 @@
       wrapper.appendChild(connector);
       schedListEl.appendChild(wrapper);
     });
+    if(typeof renderAlldayList === "function") renderAlldayList();
   }
 
   function timeToMinutes(t){
@@ -950,10 +1023,12 @@
     const duration = durVal > 0 ? durVal : null;
     const key = dateKey(selectedDate);
     if(!schedule[key]) schedule[key] = [];
-    schedule[key].push({ id: uid(), text: text, time: timeInput.value || null, duration: duration, done: false });
+    const isAllDay = !timeInput.value && !duration;
+    schedule[key].push({ id: uid(), text: text, allDay: isAllDay || undefined, time: isAllDay ? null : (timeInput.value || null), duration: isAllDay ? null : duration, done: false });
     save("dl_schedule", schedule);
     textInput.value = ""; timeInput.selectedIndex = 0; durInput.selectedIndex = 0;
     renderSchedule();
+    renderAlldayList();
   }
 
   function reorderSchedule(idsInOrder){
@@ -1231,6 +1306,221 @@
     if(e.key === "Enter") document.getElementById("insert-confirm-btn").click();
   });
 
+  /* ---------- calendar sheet ---------- */
+  const calOverlay = document.getElementById("cal-overlay");
+  let calYear, calMonth;
+
+  function openCalendar(){
+    calYear = selectedDate.getFullYear();
+    calMonth = selectedDate.getMonth();
+    renderCalGrid();
+    calOverlay.classList.add("open");
+  }
+  document.getElementById("sched-cal-btn").addEventListener("click", openCalendar);
+  document.getElementById("cal-close").addEventListener("click", function(){ calOverlay.classList.remove("open"); });
+  calOverlay.addEventListener("click", function(e){ if(e.target===calOverlay) calOverlay.classList.remove("open"); });
+  document.getElementById("cal-prev-month").addEventListener("click", function(){ calMonth--; if(calMonth<0){calMonth=11;calYear--;} renderCalGrid(); });
+  document.getElementById("cal-next-month").addEventListener("click", function(){ calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCalGrid(); });
+
+  function renderCalGrid(){
+    var MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+    document.getElementById("cal-month-label").textContent = MONTHS[calMonth]+" "+calYear;
+    var grid = document.getElementById("cal-grid");
+    grid.innerHTML="";
+    ["M","T","W","T","F","S","S"].forEach(function(d){
+      var h=document.createElement("div"); h.className="cal-wd"; h.textContent=d; grid.appendChild(h);
+    });
+    var firstDay = new Date(calYear, calMonth, 1);
+    var startOffset = firstDay.getDay()-1; if(startOffset<0) startOffset=6;
+    var daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+    var daysInPrev = new Date(calYear, calMonth, 0).getDate();
+    var todayKey = dateKey(today);
+    var selKey = dateKey(selectedDate);
+    var totalCells = Math.ceil((startOffset+daysInMonth)/7)*7;
+    for(var i=0;i<totalCells;i++){
+      var btn=document.createElement("button"); btn.className="cal-day";
+      var d, month=calMonth, year=calYear, otherMonth=false;
+      if(i<startOffset){ d=daysInPrev-startOffset+1+i; month=calMonth-1; if(month<0){month=11;year--;} otherMonth=true; }
+      else if(i>=startOffset+daysInMonth){ d=i-startOffset-daysInMonth+1; month=calMonth+1; if(month>11){month=0;year++;} otherMonth=true; }
+      else{ d=i-startOffset+1; }
+      btn.textContent=d;
+      var cellDate=new Date(year,month,d);
+      var cellKey=dateKey(cellDate);
+      if(otherMonth) btn.classList.add("other-month");
+      if(cellKey===todayKey) btn.classList.add("today");
+      if(cellKey===selKey) btn.classList.add("selected");
+      (function(cd){
+        btn.addEventListener("click",function(){
+          selectedDate=cd;
+          weekStart=startOfWeek(cd);
+          calOverlay.classList.remove("open");
+          renderSchedule();
+          renderWorkout();
+        });
+      })(cellDate);
+      grid.appendChild(btn);
+    }
+  }
+
+  /* ---------- all-day section ---------- */
+  var alldayListEl = document.getElementById("sched-allday-list");
+  var alldayInputEl = document.getElementById("allday-input");
+
+  function renderAlldayList(){
+    var key = dateKey(selectedDate);
+    var tasks = (schedule[key]||[]).filter(function(t){ return t.allDay; });
+    alldayListEl.innerHTML="";
+    if(tasks.length===0){
+      alldayListEl.innerHTML='<div style="font-size:13px;color:var(--ink-faint);padding:4px 2px 6px 2px;">No all-day tasks</div>';
+    }
+    tasks.forEach(function(task){
+      var card=document.createElement("div");
+      card.className="allday-card";
+      card.dataset.id=task.id;
+      card.innerHTML=
+        '<button class="checkbox '+(task.done?"done":"")+'">'+(task.done?"✓":"")+'</button>'+
+        '<div class="task-text '+(task.done?"done":"")+'">'+escapeHtml(task.text)+'</div>'+
+        '<button class="task-del">✕</button>';
+      card.querySelector(".checkbox").addEventListener("click",function(e){
+        e.stopPropagation(); task.done=!task.done; save("dl_schedule",schedule); renderAlldayList();
+      });
+      var del=card.querySelector(".task-del");
+      del.addEventListener("click",function(e){
+        e.stopPropagation();
+        if(!del.classList.contains("confirm")){
+          del.classList.add("confirm"); del.textContent="Sure?";
+          setTimeout(function(){del.classList.remove("confirm");del.textContent="✕";},2500); return;
+        }
+        var list=schedule[key]||[];
+        var i=list.findIndex(function(t){return t.id===task.id;});
+        if(i>-1) list.splice(i,1);
+        save("dl_schedule",schedule); renderAlldayList();
+      });
+      alldayListEl.appendChild(card);
+    });
+    makeAlldayCrossDraggable();
+  }
+
+  document.getElementById("allday-quick-add").addEventListener("click",function(){
+    alldayInputEl.classList.toggle("visible");
+    if(alldayInputEl.classList.contains("visible")) alldayInputEl.focus();
+  });
+
+  alldayInputEl.addEventListener("keydown",function(e){
+    if(e.key==="Enter") addAlldayTask();
+  });
+
+  function addAlldayTask(){
+    var text=alldayInputEl.value.trim(); if(!text) return;
+    var key=dateKey(selectedDate);
+    if(!schedule[key]) schedule[key]=[];
+    schedule[key].unshift({id:uid(),text:text,allDay:true,done:false});
+    save("dl_schedule",schedule);
+    alldayInputEl.value=""; alldayInputEl.classList.remove("visible");
+    renderAlldayList();
+  }
+
+  /* ---------- cross-section drag: all-day → timed ---------- */
+  function makeAlldayCrossDraggable(){
+    var LONG_PRESS_MS = 380;
+    var cards = Array.from(alldayListEl.querySelectorAll(".allday-card"));
+    cards.forEach(function(card){
+      var timer=null, dragging=false, ghost=null, ghostOffsetY=0, startY=0;
+
+      card.addEventListener("pointerdown",function(e){
+        if(e.target.closest("button")) return;
+        startY=e.clientY;
+        clearTimeout(timer);
+        timer=setTimeout(function(){
+          dragging=true;
+          ghost=document.createElement("div");
+          ghost.id="drag-ghost";
+          ghost.textContent=card.querySelector(".task-text").textContent;
+          ghostOffsetY=e.clientY-card.getBoundingClientRect().top;
+          ghost.style.top=(e.clientY-ghostOffsetY)+"px";
+          document.body.appendChild(ghost);
+          card.classList.add("dragging");
+          try{card.setPointerCapture(e.pointerId);}catch(_){}
+        },LONG_PRESS_MS);
+      });
+
+      card.addEventListener("pointermove",function(e){
+        if(!dragging||!ghost) return;
+        e.preventDefault();
+        ghost.style.top=(e.clientY-ghostOffsetY)+"px";
+        updateDropIndicator(e.clientY);
+      },{passive:false});
+
+      card.addEventListener("pointerup",function(e){
+        clearTimeout(timer);
+        if(!dragging){ cleanup(); return; }
+        var timedRect=document.getElementById("sched-list").getBoundingClientRect();
+        if(e.clientY>=timedRect.top){
+          var insertIdx=getTimedInsertIndex(e.clientY);
+          dropToTimed(card.dataset.id, insertIdx);
+        }
+        cleanup();
+      });
+
+      card.addEventListener("pointercancel",function(){ clearTimeout(timer); cleanup(); });
+
+      function cleanup(){
+        clearTimeout(timer); timer=null; dragging=false;
+        if(ghost){ghost.remove();ghost=null;}
+        card.classList.remove("dragging");
+        clearDropIndicators();
+      }
+    });
+  }
+
+  function updateDropIndicator(clientY){
+    clearDropIndicators();
+    var timedRect=document.getElementById("sched-list").getBoundingClientRect();
+    if(clientY<timedRect.top) return;
+    var wrappers=Array.from(document.getElementById("sched-list").querySelectorAll(".reorderable"));
+    var indicator=null;
+    for(var i=0;i<wrappers.length;i++){
+      var r=wrappers[i].getBoundingClientRect();
+      if(clientY<r.top+r.height/2){
+        indicator=wrappers[i]; break;
+      }
+    }
+    var ind=document.createElement("div");
+    ind.className="drop-indicator visible"; ind.id="active-drop-indicator";
+    if(indicator) document.getElementById("sched-list").insertBefore(ind,indicator);
+    else document.getElementById("sched-list").appendChild(ind);
+  }
+
+  function clearDropIndicators(){
+    var old=document.getElementById("active-drop-indicator");
+    if(old) old.remove();
+  }
+
+  function getTimedInsertIndex(clientY){
+    var wrappers=Array.from(document.getElementById("sched-list").querySelectorAll(".reorderable"));
+    for(var i=0;i<wrappers.length;i++){
+      var r=wrappers[i].getBoundingClientRect();
+      if(clientY<r.top+r.height/2) return i;
+    }
+    return wrappers.length;
+  }
+
+  function dropToTimed(taskId, insertIdx){
+    var key=dateKey(selectedDate);
+    var list=schedule[key]||[];
+    var taskIdx=list.findIndex(function(t){return t.id===taskId;});
+    if(taskIdx===-1) return;
+    var task=list.splice(taskIdx,1)[0];
+    task.allDay=false; task.time=null;
+    var alldayCount=list.filter(function(t){return t.allDay;}).length;
+    var absIdx=alldayCount+insertIdx;
+    list.splice(absIdx,0,task);
+    schedule[key]=list;
+    save("dl_schedule",schedule);
+    renderAlldayList();
+    renderSchedule();
+  }
+
   /* ---------- nav switching ---------- */
   const navBtns = document.querySelectorAll(".nav-btn");
   const views = { schedule: document.getElementById("view-schedule"), workout: document.getElementById("view-workout") };
@@ -1252,6 +1542,7 @@
   /* ---------- init ---------- */
   goToday();
   renderSchedule();
+  renderAlldayList();
   renderWorkout();
 })();
 </script>
