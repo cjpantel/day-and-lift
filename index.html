@@ -115,6 +115,8 @@
   .time-end{color:var(--ink-soft);}
   .time-unset{color:var(--ink-faint);font-style:italic;}
   .task-meta-dur{font-size:12px;font-weight:700;color:var(--ink-faint);}
+  .pin-icon{font-size:11px;opacity:0.6;}
+  .overlap-badge{font-size:11px;font-weight:700;color:#fff;background:var(--danger);border-radius:8px;padding:2px 8px;margin-bottom:4px;display:inline-block;}
   .task-main-row{display:flex;align-items:center;gap:12px;}
   /* Subtask progress pill on card */
   .subtask-pill{font-size:11px;font-weight:700;color:var(--ink-faint);background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:2px 8px;margin-left:6px;white-space:nowrap;}
@@ -166,6 +168,7 @@
   .task-meta{font-size:12px;color:var(--ink-faint);margin-top:3px;font-weight:600;}
   .task-del{background:none;border:none;color:var(--ink-faint);font-size:18px;padding:0 2px;}
   .task-del.confirm{color:var(--danger);font-weight:800;}
+  .subtask-del.confirm{color:var(--danger);font-weight:800;font-size:12px;}
 
   .empty-state{
     text-align:center;color:var(--ink-faint);font-size:14px;font-weight:600;
@@ -469,6 +472,7 @@
     <div class="sheet-header">
       <h2 style="font-size:13px;font-weight:700;color:var(--ink-faint);margin:0;text-transform:uppercase;letter-spacing:.06em;">Task Details</h2>
       <div style="display:flex;gap:8px;">
+        <button class="sheet-icon-btn" id="task-pin-btn" title="Pin time">📌</button>
         <button class="sheet-icon-btn danger" id="task-delete-btn" title="Delete card">🗑</button>
         <button class="sheet-icon-btn" id="task-sheet-close">✕</button>
       </div>
@@ -1002,17 +1006,29 @@
       const endLabel   = em !== null ? formatTime(minutesToTimeStr(em)) : "";
       const durLabel   = task.duration ? (task.duration < 60 ? task.duration+" min" : task.duration === 60 ? "1 hr" : task.duration === 90 ? "1.5 hr" : "2 hr") : "";
 
+      // Overlap detection for pinned tasks: check if previous task ends after this task's start
+      const prevTask = idx > 0 ? items[idx - 1] : null;
+      const prevEndForOverlap = idx > 0 ? dispStartMin[idx - 1] + (prevTask && prevTask.duration ? prevTask.duration : 0) : null;
+      const isOverlap = task.pinned && task.time && prevEndForOverlap !== null && prevEndForOverlap > timeToMinutes(task.time);
+
       // Time bar
       const timeBar = document.createElement("div");
       timeBar.className = "task-time-bar";
       timeBar.innerHTML =
         '<div class="task-time-range">'+
+          (task.pinned ? '<span class="pin-icon" title="Time pinned">📌</span>' : '')+
           (startLabel ? '<span class="time-start">'+startLabel+'</span>' : '')+
           (startLabel && endLabel ? '<span class="time-arrow">→</span>' : '')+
           (endLabel ? '<span class="time-end">'+endLabel+'</span>' : '')+
           (!startLabel && !endLabel ? '<span class="time-unset">No time set</span>' : '')+
         '</div>'+
         (durLabel ? '<span class="task-meta-dur">'+durLabel+'</span>' : '');
+      if(isOverlap){
+        const overlapBadge = document.createElement("div");
+        overlapBadge.className = "overlap-badge";
+        overlapBadge.textContent = "⚠ Overlap";
+        card.appendChild(overlapBadge);
+      }
       card.appendChild(timeBar);
 
       // Build an item row (obj = task or subtask, deleteItem = fn to call on confirmed delete)
@@ -1174,6 +1190,11 @@
     }
     let prevEndMin = anchorMin;
     timedTasks.forEach(function(task){
+      if(task.pinned){
+        // pinned: keep its time, but update prevEndMin based on its fixed time
+        prevEndMin = task.time ? (task.duration ? timeToMinutes(task.time) + task.duration : null) : prevEndMin;
+        return;
+      }
       if(prevEndMin !== null){
         task.time = minutesToTimeStr(prevEndMin);
         prevEndMin = task.duration ? prevEndMin + task.duration : null;
@@ -1286,6 +1307,9 @@
     taskDurInput.value = task.duration != null ? String(task.duration) : "";
     taskPhotoError.textContent = "";
     document.getElementById("subtask-input").value = "";
+    const pinBtn = document.getElementById("task-pin-btn");
+    pinBtn.style.opacity = task.pinned ? "1" : "0.35";
+    pinBtn.title = task.pinned ? "Unpin time" : "Pin time";
     renderTaskPhotos();
     renderTaskItems();
     taskOverlay.classList.add("open");
@@ -1351,6 +1375,11 @@
       del.addEventListener("click", function(e){
         e.stopPropagation();
         if(selectJustChanged) return;
+        if(!del.classList.contains("confirm")){
+          del.classList.add("confirm"); del.textContent = "Sure?";
+          setTimeout(function(){ del.classList.remove("confirm"); del.textContent = "✕"; }, 2500);
+          return;
+        }
         if(isFirst){
           if(task.subtasks && task.subtasks.length){
             const promoted = task.subtasks.splice(0,1)[0];
@@ -1500,6 +1529,17 @@
   });
 
   let taskDeleteArmed = false;
+  document.getElementById("task-pin-btn").addEventListener("click", function(){
+    const task = currentTask();
+    if(!task) return;
+    task.pinned = !task.pinned;
+    save("dl_schedule", schedule);
+    const pinBtn = document.getElementById("task-pin-btn");
+    pinBtn.style.opacity = task.pinned ? "1" : "0.35";
+    pinBtn.title = task.pinned ? "Unpin time" : "Pin time";
+    renderSchedule();
+  });
+
   const taskDeleteBtn = document.getElementById("task-delete-btn");
   taskDeleteBtn.addEventListener("click", function(){
     if(!taskDeleteArmed){
@@ -1649,9 +1689,10 @@
 
     list.splice(insertAfterIndex, 0, { id: uid(), text: text, time: time, duration: duration, done: false, allDay: false });
 
-    // Push subsequent timed tasks forward by the new task's duration
+    // Push subsequent timed tasks forward by the new task's duration (skip pinned)
     if(duration){
       tasksToShift.forEach(function(task){
+        if(task.pinned) return;
         if(task.time){
           task.time = minutesToTimeStr(timeToMinutes(task.time) + duration);
         }
