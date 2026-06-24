@@ -240,6 +240,9 @@
   .sheet-handle{width:36px;height:5px;background:var(--line);border-radius:3px;margin:0 auto 14px auto;}
   .sheet-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
   .sheet-header h2{font-size:18px;font-weight:800;margin:0;}
+  .editable-title{cursor:pointer;border-bottom:1.5px dashed transparent;transition:border-color .15s;}
+  .editable-title:hover{border-bottom-color:var(--line);}
+  .editable-title-input{font-size:18px;font-weight:800;border:none;border-bottom:2px solid var(--accent-color,var(--accent-schedule));background:none;color:var(--ink);outline:none;width:100%;min-width:0;}
   .sheet-icon-btn{background:var(--line);border:none;width:32px;height:32px;border-radius:50%;color:var(--ink-soft);font-size:15px;}
   .sheet-icon-btn.danger{background:#FBE3E1;color:var(--danger);}
   .set-row{
@@ -263,6 +266,10 @@
   .add-set-btn{
     width:100%;border:1.5px dashed var(--line);background:none;color:var(--accent-workout);
     font-weight:800;font-size:14px;border-radius:14px;padding:12px;margin-top:4px;
+  }
+  .wk-add-more-btn{
+    width:100%;border:1.5px dashed var(--line);background:none;color:var(--accent-workout);
+    font-weight:800;font-size:14px;border-radius:14px;padding:13px;margin-top:4px;cursor:pointer;
   }
   .add-photo-btn{
     width:100%;border:1.5px dashed var(--line);background:none;color:var(--accent-schedule);
@@ -403,12 +410,12 @@
     <div class="list" id="wk-list"></div>
     <div class="add-bar">
       <input type="text" id="wk-input" placeholder="Add exercise…" />
-      <select id="wk-sets-input" style="flex:0 0 64px;">
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-        <option value="5">5</option>
+      <select id="wk-sets-input" style="flex:0 0 80px;">
+        <option value="1">1 Set</option>
+        <option value="2">2 Sets</option>
+        <option value="3">3 Sets</option>
+        <option value="4">4 Sets</option>
+        <option value="5">5 Sets</option>
       </select>
       <button id="wk-add">Add</button>
     </div>
@@ -448,7 +455,7 @@
   <div class="sheet">
     <div class="sheet-handle"></div>
     <div class="sheet-header">
-      <h2 id="sheet-title">Exercise</h2>
+      <h2 id="sheet-title" class="editable-title" title="Tap to rename">Exercise</h2>
       <div style="display:flex;gap:8px;">
         <button class="sheet-icon-btn danger" id="sheet-delete-ex">🗑</button>
         <button class="sheet-icon-btn" id="sheet-close">✕</button>
@@ -456,6 +463,7 @@
     </div>
     <div id="sets-container"></div>
     <button class="add-set-btn" id="add-set-btn">+ Add Set</button>
+    <textarea id="ex-notes" class="task-notes" placeholder="Add notes… e.g. felt heavy, good form" style="margin-top:12px;"></textarea>
   </div>
 </div>
 
@@ -464,7 +472,7 @@
   <div class="sheet">
     <div class="sheet-handle"></div>
     <div class="sheet-header">
-      <h2 id="task-sheet-title">Task</h2>
+      <h2 id="task-sheet-title" class="editable-title" title="Tap to rename">Task</h2>
       <button class="sheet-icon-btn" id="task-sheet-close">✕</button>
     </div>
     <div class="dur-row">
@@ -731,10 +739,21 @@
         '<div class="order-circle">'+(idx+1)+'</div>'+
         '<div class="card-body"><div class="name">'+escapeHtml(ex.name)+'</div>'+
         '<div class="sub">'+setsDone+' Set'+(setsDone===1?"":"s")+'</div></div>'+
+        (ex.notes ? '<div style="font-size:12px;color:var(--ink-faint);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;">📝 '+escapeHtml(ex.notes.split('\n')[0])+'</div>' : '')+
         '<div class="chevron">›</div>';
       card.addEventListener("click", function(){ openSetEditor(key, ex.id); });
       wkListEl.appendChild(card);
     });
+    // + button after last exercise
+    const addMoreBtn = document.createElement("button");
+    addMoreBtn.className = "wk-add-more-btn";
+    addMoreBtn.textContent = "+ Add Exercise";
+    addMoreBtn.addEventListener("click", function(){
+      const input = document.getElementById("wk-input");
+      input.focus();
+      input.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    wkListEl.appendChild(addMoreBtn);
   }
 
   document.getElementById("wk-prev").addEventListener("click", function(){ weekStart = addDays(weekStart,-7); renderWorkout(); });
@@ -789,9 +808,17 @@
     const ex = currentExercise();
     if(!ex) return;
     sheetTitle.textContent = ex.name;
+    document.getElementById("ex-notes").value = ex.notes || "";
     renderSets();
     overlay.classList.add("open");
   }
+
+  document.getElementById("ex-notes").addEventListener("input", function(){
+    const ex = currentExercise();
+    if(!ex) return;
+    ex.notes = document.getElementById("ex-notes").value;
+    save("dl_workouts", workouts);
+  });
 
   function renderSets(){
     const ex = currentExercise();
@@ -1181,6 +1208,50 @@
   const taskPhotoError = document.getElementById("task-photo-error");
   let activeTaskDayKey = null, activeTaskId = null;
 
+  // Makes an <h2> element inline-editable on click, calls onSave(newText) on commit
+  function makeEditableTitle(el, onSave){
+    el.addEventListener("click", function(e){
+      if(el.querySelector("input")) return;
+      const current = el.textContent;
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = current;
+      input.className = "editable-title-input";
+      el.textContent = "";
+      el.appendChild(input);
+      input.focus();
+      input.select();
+      function commit(){
+        const val = input.value.trim();
+        el.textContent = val || current;
+        if(val && val !== current) onSave(val);
+      }
+      input.addEventListener("blur", commit);
+      input.addEventListener("keydown", function(e){
+        if(e.key === "Enter"){ e.preventDefault(); input.blur(); }
+        if(e.key === "Escape"){ input.value = current; input.blur(); }
+      });
+    });
+  }
+
+  // Wire up task title editable
+  makeEditableTitle(document.getElementById("task-sheet-title"), function(newName){
+    const task = currentTask();
+    if(!task) return;
+    task.text = newName;
+    save("dl_schedule", schedule);
+    renderSchedule();
+  });
+
+  // Wire up exercise title editable
+  makeEditableTitle(document.getElementById("sheet-title"), function(newName){
+    const ex = currentExercise();
+    if(!ex) return;
+    ex.name = newName;
+    save("dl_workouts", workouts);
+    renderWorkout();
+  });
+
   function currentTask(){
     const list = schedule[activeTaskDayKey] || [];
     return list.find(function(t){ return t.id === activeTaskId; });
@@ -1214,7 +1285,7 @@
       row.className = "subtask-row";
       row.innerHTML =
         '<button class="subtask-check'+(sub.done?" done":"")+'">'+(sub.done?"✓":"")+'</button>'+
-        '<span class="subtask-text'+(sub.done?" done":"")+'">'+escapeHtml(sub.text)+'</span>'+
+        '<span class="subtask-text'+(sub.done?" done":"")+'editable-title" style="cursor:pointer;">'+escapeHtml(sub.text)+'</span>'+
         (durText ? '<span class="subtask-dur-label">'+durText+'</span>' : '')+
         '<button class="subtask-del">✕</button>';
       row.querySelector(".subtask-check").addEventListener("click", function(){
@@ -1222,6 +1293,28 @@
         save("dl_schedule", schedule);
         renderSubtasks();
         renderSchedule();
+      });
+      // Inline rename subtask
+      const textSpan = row.querySelector(".subtask-text");
+      textSpan.addEventListener("click", function(){
+        if(textSpan.querySelector("input")) return;
+        const cur = sub.text;
+        const inp = document.createElement("input");
+        inp.type = "text"; inp.value = cur;
+        inp.style.cssText = "flex:1;border:none;border-bottom:2px solid var(--accent-schedule);background:none;font-size:14px;font-weight:600;color:var(--ink);outline:none;width:100%;";
+        textSpan.textContent = ""; textSpan.appendChild(inp);
+        inp.focus(); inp.select();
+        function commit(){
+          const val = inp.value.trim();
+          sub.text = val || cur;
+          save("dl_schedule", schedule);
+          renderSubtasks(); renderSchedule();
+        }
+        inp.addEventListener("blur", commit);
+        inp.addEventListener("keydown", function(e){
+          if(e.key==="Enter"){ e.preventDefault(); inp.blur(); }
+          if(e.key==="Escape"){ inp.value=cur; inp.blur(); }
+        });
       });
       row.querySelector(".subtask-del").addEventListener("click", function(){
         list.splice(i, 1);
