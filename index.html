@@ -256,11 +256,13 @@
     <div class="day-strip" id="sched-strip"></div>
     <div class="section-label" id="sched-date-label">Today</div>
     <div class="list" id="sched-list"></div>
-    <div class="add-bar">
-      <input type="text" id="sched-input" placeholder="Add a task…" />
-      <select id="sched-time" style="flex:0 0 100px;"></select>
-      <input type="number" inputmode="numeric" id="sched-dur" placeholder="min" style="flex:0 0 52px;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:12px 8px;font-size:14px;font-weight:700;color:var(--ink);text-align:center;" />
-      <button id="sched-add">Add</button>
+    <div class="add-bar" style="flex-direction:column;gap:8px;">
+      <input type="text" id="sched-input" placeholder="Add a task…" style="width:100%;" />
+      <div style="display:flex;gap:8px;">
+        <select id="sched-time" style="flex:1;"></select>
+        <select id="sched-dur" style="flex:0 0 120px;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:12px 8px;font-size:14px;font-weight:700;color:var(--ink);-webkit-appearance:none;appearance:none;text-align:center;"></select>
+        <button id="sched-add">Add</button>
+      </div>
     </div>
   </main>
 
@@ -784,7 +786,7 @@
     if(!schedule[key]) schedule[key] = [];
     schedule[key].push({ id: uid(), text: text, time: timeInput.value || null, duration: duration, done: false });
     save("dl_schedule", schedule);
-    textInput.value = ""; timeInput.value = ""; durInput.value = "";
+    textInput.value = ""; timeInput.selectedIndex = 0; durInput.selectedIndex = 0;
     renderSchedule();
   }
 
@@ -802,7 +804,7 @@
   /* ---------- 15-minute time picker ---------- */
   function populateTimeSelect(sel){
     const blank = document.createElement("option");
-    blank.value = ""; blank.textContent = "No time";
+    blank.value = ""; blank.textContent = "Select Time";
     sel.appendChild(blank);
     for(let m=0; m<24*60; m+=15){
       const value = pad(Math.floor(m/60))+":"+pad(m%60);
@@ -812,7 +814,27 @@
       sel.appendChild(opt);
     }
   }
+
+  function populateDurSelect(sel){
+    const blank = document.createElement("option");
+    blank.value = ""; blank.textContent = "Duration";
+    sel.appendChild(blank);
+    for(let m=0; m<=60; m+=15){
+      const opt = document.createElement("option");
+      opt.value = m;
+      opt.textContent = m === 0 ? "0 min" : m < 60 ? m+" min" : "1 hr";
+      sel.appendChild(opt);
+    }
+    for(let m=90; m<=120; m+=30){
+      const opt = document.createElement("option");
+      opt.value = m;
+      opt.textContent = m === 90 ? "1.5 hr" : "2 hr";
+      sel.appendChild(opt);
+    }
+  }
+
   populateTimeSelect(document.getElementById("sched-time"));
+  populateDurSelect(document.getElementById("sched-dur"));
 
   /* ---------- task detail sheet (notes + photos) ---------- */
   const taskOverlay = document.getElementById("task-overlay");
