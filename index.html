@@ -85,7 +85,7 @@
 
   .section-label{
     font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
-    color:var(--ink-faint);margin:4px 2px 10px 2px;
+    color:var(--ink-faint);margin:4px 2px 10px 2px;display:flex;align-items:center;
   }
 
   .list{display:flex;flex-direction:column;gap:10px;flex:1;overflow-y:auto;}
@@ -316,6 +316,14 @@
   .wk-select-btn{background:none;border:1.5px solid var(--line);border-radius:10px;padding:5px 11px;font-size:13px;font-weight:700;color:var(--ink-soft);cursor:pointer;flex-shrink:0;}
   .wk-select-btn.active{background:var(--accent-workout);border-color:var(--accent-workout);color:#fff;}
   .wk-lib-link{width:100%;border:1.5px dashed var(--line);background:none;color:var(--ink-soft);font-weight:700;font-size:13px;border-radius:14px;padding:10px;margin-top:4px;cursor:pointer;}
+  .wk-lib-date-btn{margin-left:auto;background:none;border:1.5px solid var(--line);border-radius:10px;padding:4px 10px;font-size:12px;font-weight:700;color:var(--ink-soft);cursor:pointer;flex-shrink:0;}
+  .lib-sel-actions{display:flex;gap:8px;padding:10px 0 4px;}
+  .lib-sel-count{font-size:13px;font-weight:700;color:var(--ink-soft);flex:1;align-self:center;}
+  .lib-sel-add-btn{background:var(--accent-workout);color:#fff;border:none;border-radius:10px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;}
+  .lib-sel-add-btn:disabled{opacity:.4;cursor:default;}
+  .lib-sel-del-btn{background:none;border:1.5px solid var(--danger);color:var(--danger);border-radius:10px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer;}
+  .lib-sel-del-btn:disabled{opacity:.4;cursor:default;}
+  .lib-ex-row.lib-selected{outline:2px solid var(--accent-workout);border-radius:10px;background:var(--accent-workout-soft);}
   .ex-sel-dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--ink-faint);flex-shrink:0;}
   .ex-sel-dot.sel{background:var(--accent-workout);border-color:var(--accent-workout);color:#fff;}
   .card.ex-selected{outline:2px solid var(--accent-workout);background:var(--accent-workout-soft);}
@@ -495,7 +503,10 @@
       </button>
     </div>
     <div class="day-strip" id="wk-strip"></div>
-    <div class="section-label" id="wk-date-label">Today</div>
+    <div class="section-label" id="wk-date-label">
+      <span id="wk-date-text">Today</span>
+      <button class="wk-lib-date-btn" id="wk-library-btn">📚 Library</button>
+    </div>
     <div class="list" id="wk-list"></div>
     <div id="wk-timer-area"></div>
     <div id="wk-select-sticky">
@@ -536,7 +547,6 @@
           <option value="5">5 Sets</option>
         </select>
       </div>
-      <button class="wk-lib-link" id="wk-library-btn">📚 Exercise Library</button>
     </div>
   </main>
 
@@ -799,6 +809,7 @@
     <div class="sheet-handle"></div>
     <div class="sheet-header">
       <h2>Exercise Library</h2>
+      <button class="wk-select-btn" id="lib-select-btn">Select</button>
       <button class="sheet-icon-btn" id="library-close">✕</button>
     </div>
     <div id="library-list"></div>
@@ -852,6 +863,8 @@
   let expandedExId = null;
   let selectMode = false;
   let selectedExIds = new Set();
+  let libSelectMode = false;
+  let libSelectedIds = new Set();
 
   /* ---------- shared state ---------- */
   const today = new Date();
@@ -1006,11 +1019,10 @@
   /* ================= WORKOUT TAB ================= */
   const wkStripEl = document.getElementById("wk-strip");
   const wkListEl = document.getElementById("wk-list");
-  const wkLabelEl = document.getElementById("wk-date-label");
 
   function renderWorkout(){
     renderStrip(wkStripEl, renderWorkout);
-    wkLabelEl.textContent = fmtLabel(selectedDate);
+    document.getElementById("wk-date-text").textContent = fmtLabel(selectedDate);
     const key = dateKey(selectedDate);
     const items = workouts[key] || [];
     wkListEl.innerHTML = "";
@@ -1619,46 +1631,109 @@
   function renderLibrarySheet(){
     library = loadArr("dl_library");
     const el = document.getElementById("library-list");
+    const selBtn = document.getElementById("lib-select-btn");
+    if(selBtn){
+      selBtn.textContent = libSelectMode ? "Cancel" : "Select";
+      selBtn.classList.toggle("active", libSelectMode);
+    }
     if(library.length === 0){
+      libSelectMode = false;
+      libSelectedIds = new Set();
       el.innerHTML = '<div class="lib-empty">No exercises saved yet.<br>Select exercises on any workout day<br>and tap "+ Library" to save them here.</div>';
       return;
     }
     el.innerHTML = "";
-    library.forEach(function(libEx, i){
-      const row = document.createElement("div");
-      row.className = "lib-ex-row";
-      const repsStr = exRepsLabel(libEx.sets);
-      const sub = libEx.sets.length + " Set" + (libEx.sets.length !== 1 ? "s" : "") + (repsStr ? " · " + repsStr : "");
-      row.innerHTML =
-        '<div class="lib-ex-info">'+
-          '<div class="lib-ex-name">'+escapeHtml(libEx.name)+'</div>'+
-          '<div class="lib-ex-sub">'+escapeHtml(sub)+'</div>'+
-        '</div>'+
-        '<button class="lib-add-btn">+ Add</button>'+
-        '<button class="lib-del-btn" title="Remove from library">✕</button>';
-      row.querySelector(".lib-add-btn").addEventListener("click", function(){
+
+    if(libSelectMode){
+      const actBar = document.createElement("div");
+      actBar.className = "lib-sel-actions";
+      const n = libSelectedIds.size;
+      actBar.innerHTML =
+        '<span class="lib-sel-count">'+(n > 0 ? n+" selected" : "Tap to select")+'</span>'+
+        '<button class="lib-sel-add-btn"'+(n===0?" disabled":"")+'>+ Add to Day</button>'+
+        '<button class="lib-sel-del-btn"'+(n===0?" disabled":"")+'>Delete</button>';
+      actBar.querySelector(".lib-sel-add-btn").addEventListener("click", function(){
+        if(libSelectedIds.size === 0) return;
         const key = dateKey(selectedDate);
         if(!workouts[key]) workouts[key] = [];
-        workouts[key].push(cleanExForCopy(libEx));
+        library.filter(function(ex){ return libSelectedIds.has(ex.id); })
+          .forEach(function(ex){ workouts[key].push(cleanExForCopy(ex)); });
         save("dl_workouts", workouts);
+        libSelectMode = false;
+        libSelectedIds = new Set();
         document.getElementById("library-overlay").classList.remove("open");
         renderWorkout();
       });
-      row.querySelector(".lib-del-btn").addEventListener("click", function(){
-        library.splice(i, 1);
+      actBar.querySelector(".lib-sel-del-btn").addEventListener("click", function(){
+        if(libSelectedIds.size === 0) return;
+        if(!confirm("Delete "+libSelectedIds.size+" exercise"+(libSelectedIds.size!==1?"s":"")+" from library?")) return;
+        library = library.filter(function(ex){ return !libSelectedIds.has(ex.id); });
+        libSelectedIds = new Set();
         save("dl_library", library);
         renderLibrarySheet();
       });
+      el.appendChild(actBar);
+    }
+
+    library.forEach(function(libEx){
+      const row = document.createElement("div");
+      const isSel = libSelectMode && libSelectedIds.has(libEx.id);
+      row.className = "lib-ex-row" + (isSel ? " lib-selected" : "");
+      const repsStr = exRepsLabel(libEx.sets);
+      const sub = libEx.sets.length + " Set" + (libEx.sets.length !== 1 ? "s" : "") + (repsStr ? " · " + repsStr : "");
+      if(libSelectMode){
+        row.innerHTML =
+          '<div class="ex-sel-dot'+(isSel?" sel":"")+'">'+( isSel ? '✓' : '')+'</div>'+
+          '<div class="lib-ex-info">'+
+            '<div class="lib-ex-name">'+escapeHtml(libEx.name)+'</div>'+
+            '<div class="lib-ex-sub">'+escapeHtml(sub)+'</div>'+
+          '</div>';
+        row.addEventListener("click", function(){
+          if(libSelectedIds.has(libEx.id)){ libSelectedIds.delete(libEx.id); } else { libSelectedIds.add(libEx.id); }
+          renderLibrarySheet();
+        });
+      } else {
+        row.innerHTML =
+          '<div class="lib-ex-info">'+
+            '<div class="lib-ex-name">'+escapeHtml(libEx.name)+'</div>'+
+            '<div class="lib-ex-sub">'+escapeHtml(sub)+'</div>'+
+          '</div>'+
+          '<button class="lib-add-btn">+ Add</button>'+
+          '<button class="lib-del-btn" title="Remove from library">✕</button>';
+        row.querySelector(".lib-add-btn").addEventListener("click", function(){
+          const key = dateKey(selectedDate);
+          if(!workouts[key]) workouts[key] = [];
+          workouts[key].push(cleanExForCopy(libEx));
+          save("dl_workouts", workouts);
+          document.getElementById("library-overlay").classList.remove("open");
+          renderWorkout();
+        });
+        row.querySelector(".lib-del-btn").addEventListener("click", function(){
+          if(!confirm("Remove \""+libEx.name+"\" from library?")) return;
+          library = library.filter(function(ex){ return ex.id !== libEx.id; });
+          save("dl_library", library);
+          renderLibrarySheet();
+        });
+      }
       el.appendChild(row);
     });
   }
 
   document.getElementById("library-close").addEventListener("click", function(){
+    libSelectMode = false;
+    libSelectedIds = new Set();
     document.getElementById("library-overlay").classList.remove("open");
   });
   document.getElementById("wk-library-btn").addEventListener("click", function(){
+    libSelectMode = false;
+    libSelectedIds = new Set();
     renderLibrarySheet();
     document.getElementById("library-overlay").classList.add("open");
+  });
+  document.getElementById("lib-select-btn").addEventListener("click", function(){
+    libSelectMode = !libSelectMode;
+    libSelectedIds = new Set();
+    renderLibrarySheet();
   });
   document.getElementById("wk-select-btn").addEventListener("click", function(){
     selectMode = !selectMode;
