@@ -1433,19 +1433,31 @@
     return total;
   }
 
-  function estimatedForCompletedExercises(items){
+  function estimatedForCompletedWork(items){
+    const setDur = settings.wkSetDuration || 45;
+    const defaultRestSets = settings.wkRestBetweenSets || 90;
     const restEx = settings.wkRestBetweenExercises || 120;
-    let lastDoneIdx = -1;
-    items.forEach(function(ex, i){ if(ex.completedAtElapsed != null) lastDoneIdx = i; });
-    if(lastDoneIdx < 0) return 0;
     let total = 0;
-    for(var i = 0; i <= lastDoneIdx; i++){
-      total += exerciseDuration(items[i]);
-      if(i < lastDoneIdx){
-        const afterRest = items[i].restAfter != null ? items[i].restAfter : restEx;
-        total += afterRest;
+    items.forEach(function(ex, i){
+      const exRestSets = ex.restBetweenSets != null ? ex.restBetweenSets : defaultRestSets;
+      const afterRest = ex.restAfter != null ? ex.restAfter : restEx;
+      if(ex.completedAtElapsed != null){
+        // Full exercise time credited immediately on completion
+        total += exerciseDuration(ex);
+        // Between-exercise rest credited only when next exercise's first set actually starts
+        const nextEx = items[i + 1];
+        if(nextEx && nextEx.sets.length > 0 && nextEx.sets[0].startedAtElapsed != null){
+          total += afterRest;
+        }
+      } else {
+        // In-progress: credit each done set immediately; credit rest only when the next set starts
+        ex.sets.forEach(function(s, j){
+          if(s.done) total += setDur;
+          const nextSet = ex.sets[j + 1];
+          if(nextSet && nextSet.startedAtElapsed != null) total += exRestSets;
+        });
       }
-    }
+    });
     return total;
   }
 
@@ -1495,17 +1507,18 @@
       html += '<button class="wk-start-btn" id="wk-timer-btn">▶ Start Workout</button>';
     } else {
       const completedCount = items.filter(function(ex){ return ex.completedAtElapsed != null; }).length;
-      const hasCompletions = completedCount > 0;
-      const estimatedCompleted = estimatedForCompletedExercises(items);
-      const estimatedRemaining = totalSec - estimatedCompleted;
-      const behind = hasCompletions ? (elapsedSec - estimatedCompleted) : 0;
-      const timeLeft = hasCompletions ? estimatedRemaining : Math.max(0, totalSec - elapsedSec);
+      const hasAnyProgress = completedCount > 0 || items.some(function(ex){
+        return ex.sets.some(function(s){ return s.done; });
+      });
+      const estimatedCompleted = estimatedForCompletedWork(items);
+      const behind = hasAnyProgress ? (elapsedSec - estimatedCompleted) : 0;
+      const timeLeft = hasAnyProgress ? Math.max(0, totalSec - estimatedCompleted) : Math.max(0, totalSec - elapsedSec);
       html += '<div class="wk-timer-row">';
       html += '<span class="wk-elapsed">' + fmtStopwatch(elapsedSec) + '</span>';
-      if(hasCompletions){
+      if(completedCount > 0){
         html += '<span class="wk-timer-stats">' + completedCount + '/' + items.length + ' done</span>';
       }
-      if(hasCompletions && behind > 5){
+      if(hasAnyProgress && behind > 5){
         html += '<span class="wk-timer-stats wk-behind">' + fmtDuration(behind) + ' behind</span>';
       } else if(completedCount > 1 && behind < -5){
         html += '<span class="wk-timer-stats" style="color:var(--accent-workout)">' + fmtDuration(-behind) + ' ahead</span>';
