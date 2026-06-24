@@ -287,6 +287,7 @@
     width:100%;border:1.5px dashed var(--line);background:none;color:var(--accent-workout);
     font-weight:800;font-size:14px;border-radius:14px;padding:12px;margin-top:4px;
   }
+  .wk-est-time{text-align:center;font-size:13px;font-weight:700;color:var(--ink-faint);padding:10px 0 4px;}
   .wk-add-more-btn{
     width:100%;border:1.5px dashed var(--line);background:none;color:var(--accent-workout);
     font-weight:800;font-size:14px;border-radius:14px;padding:13px;margin-top:4px;cursor:pointer;
@@ -424,6 +425,9 @@
       <button class="week-nav" id="wk-prev">‹</button>
       <h1>Workout</h1>
       <button class="week-nav" id="wk-next">›</button>
+      <button class="settings-cog" id="open-wk-settings" title="Workout Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
     </div>
     <div class="day-strip" id="wk-strip"></div>
     <div class="section-label" id="wk-date-label">Today</div>
@@ -500,6 +504,23 @@
     <div id="sets-container"></div>
     <button class="add-set-btn" id="add-set-btn">+ Add Set</button>
     <textarea id="ex-notes" class="task-notes" placeholder="Add notes… e.g. felt heavy, good form" style="margin-top:12px;"></textarea>
+    <div class="settings-row" style="margin-top:12px;">
+      <div class="settings-row-label">
+        <div class="settings-row-title">Rest Between Sets</div>
+        <div class="settings-row-sub">Override default for this exercise</div>
+      </div>
+      <select id="ex-rest-sets-select" class="settings-select">
+        <option value="">Default</option>
+        <option value="30">30 sec</option>
+        <option value="45">45 sec</option>
+        <option value="60">1 min</option>
+        <option value="90">1.5 min</option>
+        <option value="120">2 min</option>
+        <option value="180">3 min</option>
+        <option value="240">4 min</option>
+        <option value="300">5 min</option>
+      </select>
+    </div>
   </div>
 </div>
 
@@ -562,6 +583,59 @@
     </div>
     <div style="text-align:center;margin-top:6px;padding-top:10px;border-top:1px solid var(--line);">
       <span id="settings-version" style="font-size:12px;color:var(--ink-faint);font-weight:600;"></span>
+    </div>
+  </div>
+</div>
+
+<!-- WORKOUT SETTINGS SHEET -->
+<div class="overlay" id="wk-settings-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h2>Workout Settings</h2>
+      <button class="sheet-icon-btn" id="wk-settings-close">✕</button>
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-label">
+        <div class="settings-row-title">Rest Between Sets</div>
+        <div class="settings-row-sub">Default rest after each set</div>
+      </div>
+      <select id="wk-rest-sets-select" class="settings-select">
+        <option value="30">30 sec</option>
+        <option value="45">45 sec</option>
+        <option value="60">1 min</option>
+        <option value="90">1.5 min</option>
+        <option value="120">2 min</option>
+        <option value="180">3 min</option>
+        <option value="240">4 min</option>
+        <option value="300">5 min</option>
+      </select>
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-label">
+        <div class="settings-row-title">Rest Between Exercises</div>
+        <div class="settings-row-sub">Transition time between exercises</div>
+      </div>
+      <select id="wk-rest-ex-select" class="settings-select">
+        <option value="60">1 min</option>
+        <option value="90">1.5 min</option>
+        <option value="120">2 min</option>
+        <option value="180">3 min</option>
+        <option value="300">5 min</option>
+      </select>
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-label">
+        <div class="settings-row-title">Time Per Set</div>
+        <div class="settings-row-sub">How long each set takes to perform</div>
+      </div>
+      <select id="wk-set-dur-select" class="settings-select">
+        <option value="30">30 sec</option>
+        <option value="45">45 sec</option>
+        <option value="60">1 min</option>
+        <option value="90">1.5 min</option>
+        <option value="120">2 min</option>
+      </select>
     </div>
   </div>
 </div>
@@ -795,6 +869,14 @@
       card.addEventListener("click", function(){ openSetEditor(key, ex.id); });
       wkListEl.appendChild(card);
     });
+    // estimated workout time
+    const totalSec = estimatedWorkoutDuration(items);
+    if(totalSec !== null && totalSec > 0){
+      const timeEl = document.createElement("div");
+      timeEl.className = "wk-est-time";
+      timeEl.textContent = "Est. " + fmtDuration(totalSec);
+      wkListEl.appendChild(timeEl);
+    }
     // + button after last exercise
     const addMoreBtn = document.createElement("button");
     addMoreBtn.className = "wk-add-more-btn";
@@ -821,6 +903,29 @@
     if(lo !== null && hi !== null && lo !== hi) return lo + "–" + hi + " reps";
     const v = lo !== null ? lo : hi;
     return v !== null ? v + " reps" : "";
+  }
+
+  function estimatedWorkoutDuration(items){
+    if(!items || !items.length) return null;
+    const setDur = settings.wkSetDuration || 45;
+    const restSets = settings.wkRestBetweenSets || 90;
+    const restEx = settings.wkRestBetweenExercises || 120;
+    let total = 0;
+    items.forEach(function(ex, i){
+      const n = ex.sets.length;
+      if(n === 0) return;
+      const exRest = ex.restBetweenSets != null ? ex.restBetweenSets : restSets;
+      total += n * setDur + (n - 1) * exRest;
+      if(i < items.length - 1) total += restEx;
+    });
+    return total;
+  }
+
+  function fmtDuration(sec){
+    const m = Math.round(sec / 60);
+    if(m < 60) return m + " min";
+    const h = Math.floor(m / 60), rem = m % 60;
+    return rem > 0 ? h + "h " + rem + "m" : h + "h";
   }
 
   function addExercise(){
@@ -875,6 +980,7 @@
     if(!ex) return;
     sheetTitle.textContent = ex.name;
     document.getElementById("ex-notes").value = ex.notes || "";
+    document.getElementById("ex-rest-sets-select").value = ex.restBetweenSets != null ? String(ex.restBetweenSets) : "";
     renderSets();
     overlay.classList.add("open");
   }
@@ -964,6 +1070,15 @@
   });
   overlay.addEventListener("click", function(e){
     if(e.target === overlay){ overlay.classList.remove("open"); renderWorkout(); }
+  });
+
+  document.getElementById("ex-rest-sets-select").addEventListener("change", function(){
+    const ex = currentExercise();
+    if(!ex) return;
+    const v = document.getElementById("ex-rest-sets-select").value;
+    ex.restBetweenSets = v ? parseInt(v, 10) : null;
+    save("dl_workouts", workouts);
+    renderWorkout();
   });
 
   let deleteArmed = false;
@@ -1710,6 +1825,30 @@
     settings.defaultWakeup = settingsWakeupSel.value || null;
     save("dl_settings", settings);
     renderSchedule();
+  });
+
+  /* ---------- workout settings sheet ---------- */
+  const wkSettingsOverlay = document.getElementById("wk-settings-overlay");
+  document.getElementById("open-wk-settings").addEventListener("click", function(){
+    document.getElementById("wk-rest-sets-select").value = String(settings.wkRestBetweenSets || 90);
+    document.getElementById("wk-rest-ex-select").value = String(settings.wkRestBetweenExercises || 120);
+    document.getElementById("wk-set-dur-select").value = String(settings.wkSetDuration || 45);
+    wkSettingsOverlay.classList.add("open");
+  });
+  document.getElementById("wk-settings-close").addEventListener("click", function(){
+    wkSettingsOverlay.classList.remove("open");
+  });
+  wkSettingsOverlay.addEventListener("click", function(e){
+    if(e.target === wkSettingsOverlay) wkSettingsOverlay.classList.remove("open");
+  });
+  ["wk-rest-sets-select","wk-rest-ex-select","wk-set-dur-select"].forEach(function(id){
+    document.getElementById(id).addEventListener("change", function(){
+      settings.wkRestBetweenSets = parseInt(document.getElementById("wk-rest-sets-select").value, 10);
+      settings.wkRestBetweenExercises = parseInt(document.getElementById("wk-rest-ex-select").value, 10);
+      settings.wkSetDuration = parseInt(document.getElementById("wk-set-dur-select").value, 10);
+      save("dl_settings", settings);
+      renderWorkout();
+    });
   });
 
   /* ---------- wake-up time sheet ---------- */
