@@ -134,14 +134,9 @@
   .subtask-add-input{flex:1;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px 12px;font-size:14px;color:var(--ink);}
   .subtask-dur-sel{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px 8px;font-size:13px;font-weight:700;color:var(--ink);-webkit-appearance:none;appearance:none;width:90px;}
   .subtask-add-btn{border:none;background:var(--accent-schedule);color:#fff;font-weight:800;font-size:18px;border-radius:12px;width:40px;height:40px;cursor:pointer;flex-shrink:0;}
-  /* Subtask mini-list on task card */
-  .subtask-preview{margin-top:8px;display:flex;flex-direction:column;gap:4px;padding-left:4px;border-left:2px solid var(--line);}
-  .subtask-preview-row{display:flex;align-items:center;gap:6px;font-size:12px;}
-  .subtask-preview-dot{width:5px;height:5px;border-radius:50%;background:var(--line);flex-shrink:0;}
-  .subtask-preview-row.done .subtask-preview-dot{background:var(--accent-schedule);}
-  .subtask-preview-text{flex:1;color:var(--ink-soft);}
-  .subtask-preview-row.done .subtask-preview-text{text-decoration:line-through;color:var(--ink-faint);}
-  .subtask-preview-dur{color:var(--ink-faint);font-weight:700;}
+  /* Subtask rows on task card (same style as main row, separated by a rule) */
+  .card-subtask-rows{display:flex;flex-direction:column;}
+  .card-subtask-item{border-top:1px solid var(--line);margin-top:8px;padding-top:8px;}
   /* Timeline connector between cards */
   .tl-connector{
     display:flex;flex-direction:column;align-items:center;gap:0;padding:0;
@@ -472,7 +467,7 @@
   <div class="sheet">
     <div class="sheet-handle"></div>
     <div class="sheet-header">
-      <h2 id="task-sheet-title" class="editable-title" title="Tap to rename">Task</h2>
+      <h2 style="font-size:13px;font-weight:700;color:var(--ink-faint);margin:0;text-transform:uppercase;letter-spacing:.06em;">Task Details</h2>
       <button class="sheet-icon-btn" id="task-sheet-close">✕</button>
     </div>
     <div class="dur-row">
@@ -483,15 +478,13 @@
       <span class="dur-label">Duration</span>
       <select id="task-dur-input" style="border:none;background:none;font-size:15px;font-weight:700;color:var(--ink);text-align:right;-webkit-appearance:none;appearance:none;cursor:pointer;"></select>
     </div>
-    <!-- Subtasks -->
-    <div class="subtask-section">
-      <div class="subtask-section-label">Subtasks</div>
-      <div class="subtask-list" id="task-subtask-list"></div>
-      <div class="subtask-add-row">
-        <input type="text" id="subtask-input" class="subtask-add-input" placeholder="Add subtask…" />
-        <select id="subtask-dur-sel" class="subtask-dur-sel"></select>
-        <button id="subtask-add-btn" class="subtask-add-btn">+</button>
-      </div>
+    <!-- Unified item list (main task + subtasks) -->
+    <div id="task-item-list" style="margin:16px 0 0 0;display:flex;flex-direction:column;gap:0;border:1px solid var(--line);border-radius:16px;overflow:hidden;"></div>
+    <!-- Add another item -->
+    <div class="subtask-add-row" style="margin-top:10px;">
+      <input type="text" id="subtask-input" class="subtask-add-input" placeholder="Add another item…" />
+      <select id="subtask-dur-sel" class="subtask-dur-sel"></select>
+      <button id="subtask-add-btn" class="subtask-add-btn">+</button>
     </div>
     <textarea id="task-notes" class="task-notes" placeholder="Add notes or useful info…" style="margin-top:16px;"></textarea>
     <div class="photo-grid" id="task-photo-grid"></div>
@@ -1018,29 +1011,37 @@
           (durLabel ? '<span class="task-meta-dur">'+durLabel+'</span>' : '')+
         '</div>'+
         '<div class="task-main-row">'+
-          '<button class="checkbox '+(task.done?"done":"")+'">'+(task.done?"✓":"")+'</button>'+
+          '<button class="checkbox js-main-check '+(task.done?"done":"")+'">'+(task.done?"✓":"")+'</button>'+
           '<div style="flex:1;min-width:0;">'+
-            '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">'+
-              '<div class="task-text '+(task.done?"done":"")+'">'+escapeHtml(task.text)+'</div>'+
-              (subs.length ? '<span class="subtask-pill'+(subsDone===subs.length?" done-all":"")+'">'+subsDone+'/'+subs.length+'</span>' : '')+
-            '</div>'+
+            '<div class="task-text '+(task.done?"done":"")+'">'+escapeHtml(task.text)+'</div>'+
             (metaBits.length ? '<div class="task-meta">'+metaBits.join("  ")+'</div>' : "")+
           '</div>'+
           '<button class="task-del">✕</button>'+
         '</div>'+
-        (subs.length ? '<div class="subtask-preview">'+subs.map(function(s){
-          return '<div class="subtask-preview-row'+(s.done?" done":"")+'">'+
-            '<span class="subtask-preview-dot"></span>'+
-            '<span class="subtask-preview-text">'+escapeHtml(s.text)+'</span>'+
-            (s.duration ? '<span class="subtask-preview-dur">'+(s.duration<60?s.duration+' min':s.duration===60?'1 hr':s.duration===90?'1.5 hr':'2 hr')+'</span>' : '')+
+        (subs.length ? '<div class="card-subtask-rows">'+subs.map(function(s,si){
+          return '<div class="task-main-row card-subtask-item" data-si="'+si+'">'+
+            '<button class="checkbox js-sub-check '+(s.done?"done":"")+'" data-si="'+si+'">'+(s.done?"✓":"")+'</button>'+
+            '<div style="flex:1;min-width:0;">'+
+              '<div class="task-text '+(s.done?"done":"")+'">'+escapeHtml(s.text)+'</div>'+
+              (s.duration ? '<div class="task-meta">'+(s.duration<60?s.duration+' min':s.duration===60?'1 hr':s.duration===90?'1.5 hr':'2 hr')+'</div>' : '')+
+            '</div>'+
           '</div>';
         }).join('')+'</div>' : '');
 
-      card.querySelector(".checkbox").addEventListener("click", function(e){
+      card.querySelector(".js-main-check").addEventListener("click", function(e){
         e.stopPropagation();
         task.done = !task.done;
         save("dl_schedule", schedule);
         renderSchedule();
+      });
+      card.querySelectorAll(".js-sub-check").forEach(function(btn){
+        btn.addEventListener("click", function(e){
+          e.stopPropagation();
+          const si = parseInt(btn.dataset.si, 10);
+          task.subtasks[si].done = !task.subtasks[si].done;
+          save("dl_schedule", schedule);
+          renderSchedule();
+        });
       });
       const delBtn = card.querySelector(".task-del");
       delBtn.addEventListener("click", function(e){
@@ -1057,7 +1058,10 @@
         save("dl_schedule", schedule);
         renderSchedule();
       });
-      card.addEventListener("click", function(){ openTaskDetail(key, task.id); });
+      card.addEventListener("click", function(e){
+        if(e.target.closest("button")) return;
+        openTaskDetail(key, task.id);
+      });
 
       // Timeline connector with insert button
       const smLocal = dispStartMin[idx];
@@ -1202,7 +1206,6 @@
   const taskNotesEl = document.getElementById("task-notes");
   const taskDurInput = document.getElementById("task-dur-input");
   const taskTimeInput = document.getElementById("task-time-input");
-  const taskTitleEl = document.getElementById("task-sheet-title");
   const taskPhotoGrid = document.getElementById("task-photo-grid");
   const taskPhotoInput = document.getElementById("task-photo-input");
   const taskPhotoError = document.getElementById("task-photo-error");
@@ -1234,15 +1237,6 @@
     });
   }
 
-  // Wire up task title editable
-  makeEditableTitle(document.getElementById("task-sheet-title"), function(newName){
-    const task = currentTask();
-    if(!task) return;
-    task.text = newName;
-    save("dl_schedule", schedule);
-    renderSchedule();
-  });
-
   // Wire up exercise title editable
   makeEditableTitle(document.getElementById("sheet-title"), function(newName){
     const ex = currentExercise();
@@ -1261,7 +1255,6 @@
     activeTaskDayKey = dayKey; activeTaskId = taskId;
     const task = currentTask();
     if(!task) return;
-    taskTitleEl.textContent = task.text;
     taskNotesEl.value = task.notes || "";
     taskTimeInput.value = task.time || "";
     taskDurInput.value = task.duration != null ? String(task.duration) : "";
@@ -1269,61 +1262,92 @@
     document.getElementById("subtask-input").value = "";
     document.getElementById("subtask-dur-sel").selectedIndex = 0;
     renderTaskPhotos();
-    renderSubtasks();
+    renderTaskItems();
     taskOverlay.classList.add("open");
   }
 
-  function renderSubtasks(){
+  function durLabel(min){ return !min?"":(min<60?min+" min":min===60?"1 hr":min===90?"1.5 hr":"2 hr"); }
+
+  function makeInlineEdit(el, getCur, onSave){
+    el.style.cursor = "pointer";
+    el.addEventListener("click", function(){
+      if(el.querySelector("input")) return;
+      const cur = getCur();
+      const inp = document.createElement("input");
+      inp.type = "text"; inp.value = cur;
+      inp.style.cssText = "flex:1;border:none;border-bottom:2px solid var(--accent-schedule);background:none;font-size:inherit;font-weight:inherit;color:var(--ink);outline:none;width:100%;";
+      el.textContent = ""; el.appendChild(inp);
+      inp.focus(); inp.select();
+      function commit(){ const v=inp.value.trim(); el.textContent=v||cur; if(v&&v!==cur){onSave(v);} }
+      inp.addEventListener("blur", commit);
+      inp.addEventListener("keydown", function(e){ if(e.key==="Enter"){e.preventDefault();inp.blur();} if(e.key==="Escape"){inp.value=cur;inp.blur();} });
+    });
+  }
+
+  function renderTaskItems(){
     const task = currentTask();
     if(!task) return;
-    const list = task.subtasks || [];
-    const listEl = document.getElementById("task-subtask-list");
+    const listEl = document.getElementById("task-item-list");
     listEl.innerHTML = "";
-    list.forEach(function(sub, i){
-      const durText = sub.duration ? (sub.duration < 60 ? sub.duration+' min' : sub.duration === 60 ? '1 hr' : sub.duration === 90 ? '1.5 hr' : '2 hr') : "";
+
+    // Helper: build one item row (isMain=true for main task, sub object for subtasks)
+    function buildRow(isMain, obj, idx){
       const row = document.createElement("div");
-      row.className = "subtask-row";
-      row.innerHTML =
-        '<button class="subtask-check'+(sub.done?" done":"")+'">'+(sub.done?"✓":"")+'</button>'+
-        '<span class="subtask-text'+(sub.done?" done":"")+'editable-title" style="cursor:pointer;">'+escapeHtml(sub.text)+'</span>'+
-        (durText ? '<span class="subtask-dur-label">'+durText+'</span>' : '')+
-        '<button class="subtask-del">✕</button>';
-      row.querySelector(".subtask-check").addEventListener("click", function(){
-        sub.done = !sub.done;
+      row.className = "task-item-sheet-row" + (isMain ? " main" : "");
+      row.style.cssText = "display:flex;align-items:center;gap:12px;padding:13px 14px;"+(isMain?"":"border-top:1px solid var(--line);");
+
+      const check = document.createElement("button");
+      check.className = "checkbox" + (obj.done ? " done" : "");
+      check.textContent = obj.done ? "✓" : "";
+      check.addEventListener("click", function(){
+        obj.done = !obj.done;
         save("dl_schedule", schedule);
-        renderSubtasks();
+        renderTaskItems();
         renderSchedule();
       });
-      // Inline rename subtask
-      const textSpan = row.querySelector(".subtask-text");
-      textSpan.addEventListener("click", function(){
-        if(textSpan.querySelector("input")) return;
-        const cur = sub.text;
-        const inp = document.createElement("input");
-        inp.type = "text"; inp.value = cur;
-        inp.style.cssText = "flex:1;border:none;border-bottom:2px solid var(--accent-schedule);background:none;font-size:14px;font-weight:600;color:var(--ink);outline:none;width:100%;";
-        textSpan.textContent = ""; textSpan.appendChild(inp);
-        inp.focus(); inp.select();
-        function commit(){
-          const val = inp.value.trim();
-          sub.text = val || cur;
+
+      const body = document.createElement("div");
+      body.style.cssText = "flex:1;min-width:0;";
+
+      const nameEl = document.createElement("div");
+      nameEl.className = "task-text" + (obj.done ? " done" : "");
+      nameEl.textContent = obj.text;
+      makeInlineEdit(nameEl, function(){ return obj.text; }, function(v){
+        obj.text = v;
+        save("dl_schedule", schedule);
+        renderTaskItems();
+        renderSchedule();
+      });
+      body.appendChild(nameEl);
+
+      if(obj.duration){
+        const dl = document.createElement("div");
+        dl.className = "task-meta";
+        dl.textContent = durLabel(obj.duration);
+        body.appendChild(dl);
+      }
+
+      row.appendChild(check);
+      row.appendChild(body);
+
+      if(!isMain){
+        const del = document.createElement("button");
+        del.className = "subtask-del";
+        del.textContent = "✕";
+        del.addEventListener("click", function(){
+          task.subtasks.splice(idx, 1);
           save("dl_schedule", schedule);
-          renderSubtasks(); renderSchedule();
-        }
-        inp.addEventListener("blur", commit);
-        inp.addEventListener("keydown", function(e){
-          if(e.key==="Enter"){ e.preventDefault(); inp.blur(); }
-          if(e.key==="Escape"){ inp.value=cur; inp.blur(); }
+          renderTaskItems();
+          renderSchedule();
         });
-      });
-      row.querySelector(".subtask-del").addEventListener("click", function(){
-        list.splice(i, 1);
-        if(!task.subtasks || task.subtasks.length === 0) delete task.subtasks;
-        save("dl_schedule", schedule);
-        renderSubtasks();
-        renderSchedule();
-      });
-      listEl.appendChild(row);
+        row.appendChild(del);
+      }
+      return row;
+    }
+
+    listEl.appendChild(buildRow(true, task, -1));
+    (task.subtasks || []).forEach(function(sub, i){
+      listEl.appendChild(buildRow(false, sub, i));
     });
   }
 
@@ -1339,7 +1363,7 @@
     task.subtasks.push({ id: uid(), text: text, duration: durVal > 0 ? durVal : null, done: false });
     save("dl_schedule", schedule);
     input.value = ""; durSel.selectedIndex = 0;
-    renderSubtasks();
+    renderTaskItems();
     renderSchedule();
   });
   document.getElementById("subtask-input").addEventListener("keydown", function(e){
