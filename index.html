@@ -313,6 +313,24 @@
     width:100%;border:1.5px dashed var(--line);background:none;color:var(--accent-workout);
     font-weight:800;font-size:14px;border-radius:14px;padding:13px;margin-top:4px;cursor:pointer;
   }
+  .wk-select-btn{background:none;border:1.5px solid var(--line);border-radius:10px;padding:5px 11px;font-size:13px;font-weight:700;color:var(--ink-soft);cursor:pointer;flex-shrink:0;}
+  .wk-select-btn.active{background:var(--accent-workout);border-color:var(--accent-workout);color:#fff;}
+  .wk-lib-link{width:100%;border:1.5px dashed var(--line);background:none;color:var(--ink-soft);font-weight:700;font-size:13px;border-radius:14px;padding:10px;margin-top:4px;cursor:pointer;}
+  .ex-sel-dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--ink-faint);flex-shrink:0;}
+  .ex-sel-dot.sel{background:var(--accent-workout);border-color:var(--accent-workout);color:#fff;}
+  .card.ex-selected{outline:2px solid var(--accent-workout);background:var(--accent-workout-soft);}
+  .wk-select-bar{display:flex;align-items:center;gap:8px;padding:12px 2px;flex-wrap:wrap;}
+  .sel-count{font-size:13px;font-weight:700;color:var(--ink-soft);flex:1;min-width:80px;}
+  .sel-action-btn{background:var(--accent-workout);color:#fff;border:none;border-radius:10px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;}
+  .sel-action-btn:disabled{opacity:.4;cursor:default;}
+  .sel-cancel-btn{background:none;border:1.5px solid var(--line);border-radius:10px;padding:7px 12px;font-size:13px;font-weight:700;color:var(--ink-soft);cursor:pointer;}
+  .lib-ex-row{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line);}
+  .lib-ex-info{flex:1;min-width:0;}
+  .lib-ex-name{font-size:15px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .lib-ex-sub{font-size:12px;color:var(--ink-faint);margin-top:2px;}
+  .lib-add-btn{background:var(--accent-workout);color:#fff;border:none;border-radius:10px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;}
+  .lib-del-btn{background:none;border:none;color:var(--ink-faint);font-size:18px;cursor:pointer;padding:4px 6px;flex-shrink:0;}
+  .lib-empty{text-align:center;padding:32px 16px;color:var(--ink-faint);font-size:14px;line-height:1.5;}
   .ex-active-card{flex-direction:column;align-items:stretch;gap:0;}
   .ex-active-header{display:flex;align-items:center;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:10px;}
   .ex-active-sets{display:flex;flex-direction:column;gap:6px;}
@@ -462,6 +480,7 @@
       <button class="week-nav" id="wk-prev">‹</button>
       <h1>Workout</h1>
       <button class="week-nav" id="wk-next">›</button>
+      <button class="wk-select-btn" id="wk-select-btn">Select</button>
       <button class="settings-cog" id="open-wk-settings" title="Workout Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
@@ -496,6 +515,7 @@
           <option value="5">5 Sets</option>
         </select>
       </div>
+      <button class="wk-lib-link" id="wk-library-btn">📚 Exercise Library</button>
     </div>
   </main>
 
@@ -738,6 +758,32 @@
   </div>
 </div>
 
+<!-- COPY TO DATE SHEET -->
+<div class="overlay" id="copy-date-overlay">
+  <div class="sheet" style="--accent-color:var(--accent-workout);">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h2>Copy to Date</h2>
+      <button class="sheet-icon-btn" id="copy-date-close">✕</button>
+    </div>
+    <p id="copy-date-info" style="font-size:14px;color:var(--ink-soft);margin:0 0 16px;"></p>
+    <input type="date" id="copy-date-input" style="width:100%;border:1.5px solid var(--line);border-radius:14px;padding:13px 16px;font-size:15px;font-weight:600;color:var(--ink);background:var(--card);margin-bottom:14px;display:block;" />
+    <button id="copy-date-confirm" style="width:100%;border:none;background:var(--accent-workout);color:#fff;font-weight:800;font-size:15px;border-radius:14px;padding:14px;cursor:pointer;">Copy Exercises</button>
+  </div>
+</div>
+
+<!-- EXERCISE LIBRARY SHEET -->
+<div class="overlay" id="library-overlay">
+  <div class="sheet" style="--accent-color:var(--accent-workout);">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h2>Exercise Library</h2>
+      <button class="sheet-icon-btn" id="library-close">✕</button>
+    </div>
+    <div id="library-list"></div>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -766,18 +812,25 @@
     try{ return JSON.parse(localStorage.getItem(key) || "{}"); }
     catch(e){ return {}; }
   }
+  function loadArr(key){
+    try{ return JSON.parse(localStorage.getItem(key) || "[]"); }
+    catch(e){ return []; }
+  }
   function save(key, data){
     try{ localStorage.setItem(key, JSON.stringify(data)); return true; }
     catch(e){ console.error("Storage failed", e); return false; }
   }
   let workouts = load("dl_workouts");
   let schedule = load("dl_schedule");
-  let settings = load("dl_settings"); // { defaultWakeup: "07:00", wakeupTimes: { "2024-01-01": "06:30" } }
+  let settings = load("dl_settings");
+  let library = loadArr("dl_library");
   let timerState = load("dl_timer") || { dayKey: null, elapsed: 0, startMs: null, running: false };
   let timerInterval = null;
   let restCountdownState = null; // { endMs, exId, type: 'set'|'exercise' }
   let restCountdownInterval = null;
   let expandedExId = null;
+  let selectMode = false;
+  let selectedExIds = new Set();
 
   /* ---------- shared state ---------- */
   const today = new Date();
@@ -961,6 +1014,31 @@
       const subLine = setsDone + ' Set' + (setsDone===1?"":"s") + (repsStr ? ' · ' + repsStr : '');
       const durSec = exerciseDuration(ex);
       const isDone = ex.completedAtElapsed != null;
+
+      if(selectMode){
+        const isSel = selectedExIds.has(ex.id);
+        card.className = "card" + (isSel ? " ex-selected" : "");
+        card.dataset.id = ex.id;
+        card.innerHTML =
+          '<div class="ex-sel-dot'+(isSel?" sel":"")+'">'+( isSel ? '✓' : '')+'</div>'+
+          '<div class="wk-done-circle'+(isDone?' done':'')+'">'+( isDone ? '✓' : (idx+1))+'</div>'+
+          '<div class="card-body"><div class="name">'+escapeHtml(ex.name)+'</div>'+
+          '<div class="sub">'+subLine+'</div></div>'+
+          (durSec > 0 ? '<div class="wk-ex-dur">'+fmtDuration(durSec)+'</div>' : '');
+        card.addEventListener("click", function(){
+          if(selectedExIds.has(ex.id)){ selectedExIds.delete(ex.id); } else { selectedExIds.add(ex.id); }
+          renderWorkout();
+        });
+        wkListEl.appendChild(card);
+        if(idx < items.length - 1){
+          const restEl = document.createElement("div");
+          restEl.className = "wk-rest-connector";
+          const afterRest = ex.restAfter != null ? ex.restAfter : restEx;
+          restEl.innerHTML = '<span class="wk-rest-label">'+fmtDuration(afterRest)+' rest</span>';
+          wkListEl.appendChild(restEl);
+        }
+        return;
+      }
 
       if(ex.id === activeId){
         // ---- expanded active exercise ----
@@ -1186,16 +1264,32 @@
     });
     updateRestCountdown();
     renderTimerArea();
-    // + button after last exercise
-    const addMoreBtn = document.createElement("button");
-    addMoreBtn.className = "wk-add-more-btn";
-    addMoreBtn.textContent = "+ Add Exercise";
-    addMoreBtn.addEventListener("click", function(){
-      const input = document.getElementById("wk-input");
-      input.focus();
-      input.scrollIntoView({ behavior: "smooth", block: "center" });
-    });
-    wkListEl.appendChild(addMoreBtn);
+    if(selectMode){
+      const bar = document.createElement("div");
+      bar.className = "wk-select-bar";
+      const n = selectedExIds.size;
+      bar.innerHTML =
+        '<span class="sel-count">'+(n > 0 ? n+' selected' : 'Tap to select')+'</span>'+
+        '<button class="sel-action-btn" id="sel-copy-btn"'+(n===0?' disabled':'')+'">Copy to Date</button>'+
+        '<button class="sel-action-btn" id="sel-lib-btn"'+(n===0?' disabled':'')+'">+ Library</button>'+
+        '<button class="sel-cancel-btn" id="sel-cancel-btn">Cancel</button>';
+      wkListEl.appendChild(bar);
+      if(n > 0){
+        document.getElementById("sel-copy-btn").addEventListener("click", showCopyDateSheet);
+        document.getElementById("sel-lib-btn").addEventListener("click", addSelectedToLibrary);
+      }
+      document.getElementById("sel-cancel-btn").addEventListener("click", exitSelectMode);
+    } else {
+      const addMoreBtn = document.createElement("button");
+      addMoreBtn.className = "wk-add-more-btn";
+      addMoreBtn.textContent = "+ Add Exercise";
+      addMoreBtn.addEventListener("click", function(){
+        const input = document.getElementById("wk-input");
+        input.focus();
+        input.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      wkListEl.appendChild(addMoreBtn);
+    }
   }
 
   document.getElementById("wk-prev").addEventListener("click", function(){ weekStart = addDays(weekStart,-7); renderWorkout(); });
@@ -1388,6 +1482,121 @@
     save("dl_workouts", workouts);
     renderWorkout();
   }
+
+  /* ========== SELECT / COPY / LIBRARY ========== */
+
+  function exitSelectMode(){
+    selectMode = false;
+    selectedExIds = new Set();
+    const btn = document.getElementById("wk-select-btn");
+    if(btn){ btn.textContent = "Select"; btn.classList.remove("active"); }
+    renderWorkout();
+  }
+
+  function cleanExForCopy(ex){
+    return {
+      id: uid(), name: ex.name, notes: ex.notes || "",
+      restBetweenSets: ex.restBetweenSets || null,
+      restAfter: ex.restAfter || null,
+      completedAtElapsed: null,
+      sets: ex.sets.map(function(s){
+        return { weight: s.weight, repsMin: s.repsMin, repsMax: s.repsMax,
+                 done: false, startedAtElapsed: null, repsActual: null };
+      })
+    };
+  }
+
+  function getSelectedExercises(){
+    const key = dateKey(selectedDate);
+    const items = workouts[key] || [];
+    return items.filter(function(ex){ return selectedExIds.has(ex.id); });
+  }
+
+  function showCopyDateSheet(){
+    const selected = getSelectedExercises();
+    if(selected.length === 0) return;
+    document.getElementById("copy-date-info").textContent =
+      selected.length + " exercise" + (selected.length !== 1 ? "s" : "") + " will be copied";
+    const next = new Date(selectedDate);
+    next.setDate(next.getDate() + 1);
+    document.getElementById("copy-date-input").value = dateKey(next);
+    document.getElementById("copy-date-overlay").classList.add("open");
+  }
+
+  document.getElementById("copy-date-close").addEventListener("click", function(){
+    document.getElementById("copy-date-overlay").classList.remove("open");
+  });
+  document.getElementById("copy-date-confirm").addEventListener("click", function(){
+    const targetKey = document.getElementById("copy-date-input").value;
+    if(!targetKey) return;
+    const selected = getSelectedExercises();
+    if(selected.length === 0) return;
+    if(!workouts[targetKey]) workouts[targetKey] = [];
+    selected.forEach(function(ex){ workouts[targetKey].push(cleanExForCopy(ex)); });
+    save("dl_workouts", workouts);
+    document.getElementById("copy-date-overlay").classList.remove("open");
+    exitSelectMode();
+  });
+
+  function addSelectedToLibrary(){
+    const selected = getSelectedExercises();
+    if(selected.length === 0) return;
+    selected.forEach(function(ex){ library.push(cleanExForCopy(ex)); });
+    save("dl_library", library);
+    exitSelectMode();
+  }
+
+  function renderLibrarySheet(){
+    library = loadArr("dl_library");
+    const el = document.getElementById("library-list");
+    if(library.length === 0){
+      el.innerHTML = '<div class="lib-empty">No exercises saved yet.<br>Select exercises on any workout day<br>and tap "+ Library" to save them here.</div>';
+      return;
+    }
+    el.innerHTML = "";
+    library.forEach(function(libEx, i){
+      const row = document.createElement("div");
+      row.className = "lib-ex-row";
+      const repsStr = exRepsLabel(libEx.sets);
+      const sub = libEx.sets.length + " Set" + (libEx.sets.length !== 1 ? "s" : "") + (repsStr ? " · " + repsStr : "");
+      row.innerHTML =
+        '<div class="lib-ex-info">'+
+          '<div class="lib-ex-name">'+escapeHtml(libEx.name)+'</div>'+
+          '<div class="lib-ex-sub">'+escapeHtml(sub)+'</div>'+
+        '</div>'+
+        '<button class="lib-add-btn">+ Add</button>'+
+        '<button class="lib-del-btn" title="Remove from library">✕</button>';
+      row.querySelector(".lib-add-btn").addEventListener("click", function(){
+        const key = dateKey(selectedDate);
+        if(!workouts[key]) workouts[key] = [];
+        workouts[key].push(cleanExForCopy(libEx));
+        save("dl_workouts", workouts);
+        document.getElementById("library-overlay").classList.remove("open");
+        renderWorkout();
+      });
+      row.querySelector(".lib-del-btn").addEventListener("click", function(){
+        library.splice(i, 1);
+        save("dl_library", library);
+        renderLibrarySheet();
+      });
+      el.appendChild(row);
+    });
+  }
+
+  document.getElementById("library-close").addEventListener("click", function(){
+    document.getElementById("library-overlay").classList.remove("open");
+  });
+  document.getElementById("wk-library-btn").addEventListener("click", function(){
+    renderLibrarySheet();
+    document.getElementById("library-overlay").classList.add("open");
+  });
+  document.getElementById("wk-select-btn").addEventListener("click", function(){
+    selectMode = !selectMode;
+    if(!selectMode){ selectedExIds = new Set(); }
+    this.textContent = selectMode ? "Cancel" : "Select";
+    this.classList.toggle("active", selectMode);
+    renderWorkout();
+  });
 
   function addExercise(){
     const input = document.getElementById("wk-input");
