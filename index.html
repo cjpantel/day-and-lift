@@ -986,7 +986,12 @@
         });
         card.querySelector(".wk-done-circle").addEventListener("click", function(e){
           e.stopPropagation();
-          ex.completedAtElapsed = ex.completedAtElapsed != null ? null : currentTimerElapsed();
+          if(ex.completedAtElapsed != null){
+            ex.completedAtElapsed = null;
+          } else {
+            autoStartTimerIfNeeded();
+            ex.completedAtElapsed = currentTimerElapsed();
+          }
           save("dl_workouts", workouts);
           renderWorkout();
         });
@@ -1056,6 +1061,7 @@
               '</button>';
             attachPlannedInputListeners(row.querySelector(".active-set-inputs"), s);
             row.querySelector(".start-set-btn").addEventListener("click", function(){
+              autoStartTimerIfNeeded();
               s.startedAtElapsed = currentTimerElapsed();
               save("dl_workouts", workouts);
               clearInterval(restCountdownInterval);
@@ -1079,6 +1085,7 @@
             const inputsEl = row.querySelector(".active-set-inputs");
 
             if(s.done){
+              autoStartTimerIfNeeded();
               row.classList.remove("set-active");
               const startBtn = row.querySelector(".start-set-btn");
               if(startBtn) startBtn.remove();
@@ -1109,6 +1116,7 @@
               newStartBtn.className = "start-set-btn" + (s.startedAtElapsed!=null?" active":"");
               newStartBtn.textContent = s.startedAtElapsed!=null ? "●" : "▶";
               newStartBtn.addEventListener("click", function(){
+                autoStartTimerIfNeeded();
                 s.startedAtElapsed = currentTimerElapsed();
                 save("dl_workouts", workouts);
                 clearInterval(restCountdownInterval);
@@ -1143,7 +1151,12 @@
           '<div class="chevron">›</div>';
         card.querySelector(".wk-done-circle").addEventListener("click", function(e){
           e.stopPropagation();
-          ex.completedAtElapsed = ex.completedAtElapsed != null ? null : currentTimerElapsed();
+          if(ex.completedAtElapsed != null){
+            ex.completedAtElapsed = null;
+          } else {
+            autoStartTimerIfNeeded();
+            ex.completedAtElapsed = currentTimerElapsed();
+          }
           save("dl_workouts", workouts);
           renderWorkout();
         });
@@ -1300,7 +1313,7 @@
       }
       if(hasCompletions && behind > 5){
         html += '<span class="wk-timer-stats wk-behind">' + fmtDuration(behind) + ' behind</span>';
-      } else if(hasCompletions && behind < -5){
+      } else if(completedCount > 1 && behind < -5){
         html += '<span class="wk-timer-stats" style="color:var(--accent-workout)">' + fmtDuration(-behind) + ' ahead</span>';
       }
       if(timeLeft > 0){
@@ -1346,6 +1359,14 @@
     clearInterval(timerInterval);
     timerInterval = null;
     renderTimerArea();
+  }
+
+  function autoStartTimerIfNeeded(){
+    const key = dateKey(selectedDate);
+    const isThisDay = timerState.dayKey === key;
+    if(!isThisDay || (!timerState.running && timerState.elapsed === 0)){
+      startTimer();
+    }
   }
 
   function resetWorkout(){
