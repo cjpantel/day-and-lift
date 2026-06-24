@@ -1444,17 +1444,20 @@
       if(ex.completedAtElapsed != null){
         // Full exercise time credited immediately on completion
         total += exerciseDuration(ex);
-        // Between-exercise rest credited only when next exercise's first set actually starts
+        // Between-exercise rest credited when next exercise has been touched
+        // (started via ▶, any set done, or fully completed) — not while still resting
         const nextEx = items[i + 1];
-        if(nextEx && nextEx.sets.length > 0 && nextEx.sets[0].startedAtElapsed != null){
+        if(nextEx && (nextEx.completedAtElapsed != null ||
+           (nextEx.sets.length > 0 && (nextEx.sets[0].startedAtElapsed != null || nextEx.sets[0].done)))){
           total += afterRest;
         }
       } else {
-        // In-progress: credit each done set immediately; credit rest only when the next set starts
+        // In-progress: credit each done set immediately;
+        // credit rest only when the next set has been started OR directly marked done
         ex.sets.forEach(function(s, j){
           if(s.done) total += setDur;
           const nextSet = ex.sets[j + 1];
-          if(nextSet && nextSet.startedAtElapsed != null) total += exRestSets;
+          if(nextSet && (nextSet.startedAtElapsed != null || nextSet.done)) total += exRestSets;
         });
       }
     });
