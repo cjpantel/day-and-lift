@@ -254,17 +254,31 @@
   .photo-error{color:var(--danger);font-size:12px;font-weight:700;margin-top:4px;min-height:14px;}
   .delete-exercise-row{margin-top:18px;text-align:center;}
   .delete-exercise-row button{background:none;border:none;color:var(--danger);font-weight:700;font-size:14px;}
+  .settings-cog{background:none;border:none;color:var(--ink-soft);width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:50%;}
+  .settings-cog:active{background:var(--line);}
+  .settings-row{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;}
+  .settings-row-label{flex:1;}
+  .settings-row-title{font-size:15px;font-weight:700;color:var(--ink);}
+  .settings-row-sub{font-size:12px;color:var(--ink-faint);margin-top:2px;}
+  .settings-select{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:8px 10px;font-size:14px;font-weight:700;color:var(--ink);-webkit-appearance:none;appearance:none;text-align:center;}
+  .wakeup-card{background:var(--accent-schedule-soft);border:1px solid var(--accent-schedule-soft);border-radius:var(--radius);padding:12px 14px;display:flex;flex-direction:column;gap:4px;cursor:pointer;}
+  .wakeup-card .wakeup-label{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-schedule);}
+  .wakeup-card .wakeup-time{font-size:18px;font-weight:800;color:var(--ink);}
+  .wakeup-card .wakeup-tap{font-size:12px;color:var(--ink-soft);}
 </style>
 </head>
 <body>
 <div id="app">
 
   <!-- SCHEDULE VIEW -->
-  <main class="view" id="view-schedule" style="--accent-color:var(--accent-schedule);">
+  <main class="view active" id="view-schedule" style="--accent-color:var(--accent-schedule);">
     <div class="top-bar">
       <button class="week-nav" id="sched-prev">‹</button>
       <h1>Schedule</h1>
       <button class="week-nav" id="sched-next">›</button>
+      <button class="settings-cog" id="open-settings" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
     </div>
     <div class="day-strip" id="sched-strip"></div>
     <div class="section-label" id="sched-date-label">Today</div>
@@ -280,7 +294,7 @@
   </main>
 
   <!-- WORKOUT VIEW -->
-  <main class="view active" id="view-workout" style="--accent-color:var(--accent-workout);">
+  <main class="view" id="view-workout" style="--accent-color:var(--accent-workout);">
     <div class="top-bar">
       <button class="week-nav" id="wk-prev">‹</button>
       <h1>Workout</h1>
@@ -307,7 +321,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
       Schedule
     </button>
-    <button class="nav-btn" data-target="workout" style="--nav-accent:var(--accent-workout);">
+    <button class="nav-btn" data-target="workout" style="--nav-accent:var(--accent-workout);" id="nav-workout">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10"/></svg>
       Workout
     </button>
@@ -347,6 +361,39 @@
     <button class="add-photo-btn" id="task-add-photo-btn">+ Add Photo</button>
     <input type="file" accept="image/*" id="task-photo-input" multiple style="display:none;" />
     <div class="photo-error" id="task-photo-error"></div>
+  </div>
+</div>
+
+<!-- SETTINGS SHEET -->
+<div class="overlay" id="settings-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h2>Settings</h2>
+      <button class="sheet-icon-btn" id="settings-close">✕</button>
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-label">
+        <div class="settings-row-title">Default Wake Up</div>
+        <div class="settings-row-sub">Used when no day-specific time is set</div>
+      </div>
+      <select id="settings-wakeup-select" class="settings-select"></select>
+    </div>
+  </div>
+</div>
+
+<!-- WAKE UP TIME SHEET -->
+<div class="overlay" id="wakeup-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h2>Wake Up</h2>
+      <button class="sheet-icon-btn" id="wakeup-close">✕</button>
+    </div>
+    <p style="font-size:14px;color:var(--ink-soft);margin:0 0 16px 0;">Set wake up time for <span id="wakeup-date-label" style="font-weight:700;color:var(--ink);"></span></p>
+    <select id="wakeup-time-select" style="width:100%;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:14px;font-size:15px;font-weight:700;color:var(--ink);-webkit-appearance:none;appearance:none;margin-bottom:16px;"></select>
+    <button id="wakeup-confirm-btn" style="width:100%;border:none;background:var(--accent-schedule);color:#fff;font-weight:800;font-size:16px;border-radius:14px;padding:15px;">Set Wake Up Time</button>
+    <button id="wakeup-use-default-btn" style="width:100%;border:none;background:none;color:var(--ink-soft);font-weight:700;font-size:14px;border-radius:14px;padding:12px;margin-top:4px;">Use default time</button>
   </div>
 </div>
 
@@ -399,6 +446,7 @@
   }
   let workouts = load("dl_workouts");
   let schedule = load("dl_schedule");
+  let settings = load("dl_settings"); // { defaultWakeup: "07:00", wakeupTimes: { "2024-01-01": "06:30" } }
 
   /* ---------- shared state ---------- */
   const today = new Date();
@@ -724,7 +772,9 @@
     const items = (schedule[key] || []).slice();
 
     // Compute cascading display start times (manual order respected)
-    let prevEndMin = null;
+    // Seed cascade from wake-up time if no explicit time on first task
+    const wakeupSeed = (settings.wakeupTimes && settings.wakeupTimes[key]) || settings.defaultWakeup || null;
+    let prevEndMin = wakeupSeed ? timeToMinutes(wakeupSeed) : null;
     const dispStartMin = items.map(function(task){
       let startMin = null;
       if(task.time){ startMin = timeToMinutes(task.time); }
@@ -734,10 +784,29 @@
     });
 
     schedListEl.innerHTML = "";
-    if(items.length === 0){
-      schedListEl.innerHTML = '<div class="empty-state">Nothing planned yet.<br>Add a task below.</div>';
-      return;
-    }
+
+    // Wake Up card always shown first
+    const wakeupTime = (settings.wakeupTimes && settings.wakeupTimes[key]) || settings.defaultWakeup || null;
+    const wakeupCard = document.createElement("div");
+    wakeupCard.className = "wakeup-card";
+    wakeupCard.innerHTML =
+      '<div class="wakeup-label">Wake Up</div>'+
+      '<div class="wakeup-time">'+(wakeupTime ? formatTime(wakeupTime) : "Tap to set time")+'</div>'+
+      '<div class="wakeup-tap">'+(wakeupTime ? "Tap to change" : "No time set")+'</div>';
+    wakeupCard.addEventListener("click", function(){ openWakeupSheet(key); });
+    schedListEl.appendChild(wakeupCard);
+
+    // Insert button after wake-up card
+    const wakeupInsertBtn = document.createElement("button");
+    wakeupInsertBtn.className = "insert-btn";
+    wakeupInsertBtn.textContent = "+";
+    wakeupInsertBtn.addEventListener("click", function(e){
+      e.stopPropagation();
+      openInsertSheet(key, 0);
+    });
+    schedListEl.appendChild(wakeupInsertBtn);
+
+    if(items.length === 0) return;
     items.forEach(function(task, idx){
       const wrapper = document.createElement("div");
       wrapper.className = "reorderable";
@@ -1008,6 +1077,63 @@
   });
   taskOverlay.addEventListener("click", function(e){
     if(e.target === taskOverlay){ taskOverlay.classList.remove("open"); renderSchedule(); }
+  });
+
+  /* ---------- settings sheet ---------- */
+  const settingsOverlay = document.getElementById("settings-overlay");
+  const settingsWakeupSel = document.getElementById("settings-wakeup-select");
+  populateTimeSelect(settingsWakeupSel);
+
+  document.getElementById("open-settings").addEventListener("click", function(){
+    settingsWakeupSel.value = settings.defaultWakeup || "";
+    settingsOverlay.classList.add("open");
+  });
+  document.getElementById("settings-close").addEventListener("click", function(){
+    settingsOverlay.classList.remove("open");
+  });
+  settingsOverlay.addEventListener("click", function(e){
+    if(e.target === settingsOverlay) settingsOverlay.classList.remove("open");
+  });
+  settingsWakeupSel.addEventListener("change", function(){
+    settings.defaultWakeup = settingsWakeupSel.value || null;
+    save("dl_settings", settings);
+    renderSchedule();
+  });
+
+  /* ---------- wake-up time sheet ---------- */
+  const wakeupOverlay = document.getElementById("wakeup-overlay");
+  const wakeupTimeSel = document.getElementById("wakeup-time-select");
+  const wakeupDateLabel = document.getElementById("wakeup-date-label");
+  populateTimeSelect(wakeupTimeSel);
+
+  let wakeupDayKey = null;
+  function openWakeupSheet(dayKey){
+    wakeupDayKey = dayKey;
+    const existing = (settings.wakeupTimes && settings.wakeupTimes[dayKey]) || settings.defaultWakeup || "";
+    wakeupTimeSel.value = existing;
+    wakeupDateLabel.textContent = fmtLabel(selectedDate);
+    wakeupOverlay.classList.add("open");
+  }
+  document.getElementById("wakeup-close").addEventListener("click", function(){
+    wakeupOverlay.classList.remove("open");
+  });
+  wakeupOverlay.addEventListener("click", function(e){
+    if(e.target === wakeupOverlay) wakeupOverlay.classList.remove("open");
+  });
+  document.getElementById("wakeup-confirm-btn").addEventListener("click", function(){
+    if(!wakeupDayKey) return;
+    if(!settings.wakeupTimes) settings.wakeupTimes = {};
+    settings.wakeupTimes[wakeupDayKey] = wakeupTimeSel.value || null;
+    save("dl_settings", settings);
+    wakeupOverlay.classList.remove("open");
+    renderSchedule();
+  });
+  document.getElementById("wakeup-use-default-btn").addEventListener("click", function(){
+    if(!wakeupDayKey) return;
+    if(settings.wakeupTimes) delete settings.wakeupTimes[wakeupDayKey];
+    save("dl_settings", settings);
+    wakeupOverlay.classList.remove("open");
+    renderSchedule();
   });
 
   /* ---------- insert-task sheet ---------- */
