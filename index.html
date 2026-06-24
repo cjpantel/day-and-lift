@@ -3625,10 +3625,10 @@
   function saveWorkoutToHistory(name){
     const key = dateKey(selectedDate);
     const items = workouts[key] || [];
-    const totalSets = items.reduce(function(sum, ex){ return sum + ex.sets.length; }, 0);
     const doneSetCount = items.reduce(function(sum, ex){
       return sum + ex.sets.filter(function(s){ return s.done; }).length;
     }, 0);
+    const totalSets = doneSetCount; // only completed sets count toward the workout
     const exercises = items.map(function(ex){
       return {
         name: ex.name,
@@ -3794,16 +3794,23 @@
     const durMin = entry.durationSec ? Math.round(entry.durationSec/60) : 0;
     if(timeStr) html += '<div class="hist-card-stats">Started '+escapeHtml(timeStr)+' · '+durMin+' min</div>';
     else if(durMin) html += '<div class="hist-card-stats">'+durMin+' min</div>';
-    html += '<div class="hist-card-stats" style="margin-bottom:2px;">'+entry.totalSets+' sets · '+entry.exerciseCount+' exercise'+(entry.exerciseCount!==1?'s':'')+'</div>';
     const exercises = entry.exercises || [];
+    const doneExCount = exercises.filter(function(ex){
+      const sets = Array.isArray(ex.sets) ? ex.sets : [];
+      return sets.length > 0 && sets.every(function(s){ return s.done; });
+    }).length;
+    const exLabel = doneExCount === exercises.length
+      ? exercises.length + ' exercise' + (exercises.length !== 1 ? 's' : '')
+      : doneExCount + '/' + exercises.length + ' exercises complete';
+    html += '<div class="hist-card-stats" style="margin-bottom:2px;">'+entry.totalSets+' sets · '+escapeHtml(exLabel)+'</div>';
     const tagSetCounts = {};
     exercises.forEach(function(ex){
-      const setCount = Array.isArray(ex.sets) ? ex.sets.length : (ex.sets || 0);
+      const doneSets = Array.isArray(ex.sets) ? ex.sets.filter(function(s){ return s.done; }).length : 0;
       (ex.tagIds || []).forEach(function(tagId){
-        tagSetCounts[tagId] = (tagSetCounts[tagId]||0) + setCount;
+        tagSetCounts[tagId] = (tagSetCounts[tagId]||0) + doneSets;
       });
     });
-    const usedTagIds = Object.keys(tagSetCounts);
+    const usedTagIds = Object.keys(tagSetCounts).filter(function(id){ return tagSetCounts[id] > 0; });
     if(usedTagIds.length){
       html += '<span class="hist-detail-section-lbl">Sets by Body Part</span><div class="hist-detail-breakdown">';
       usedTagIds.forEach(function(tagId){
@@ -3821,10 +3828,13 @@
       html += '<span class="hist-detail-section-lbl">Exercises</span>';
       exercises.forEach(function(ex){
         const sets = Array.isArray(ex.sets) ? ex.sets : [];
+        const doneSets = sets.filter(function(s){ return s.done; }).length;
+        const isComplete = sets.length > 0 && doneSets === sets.length;
         const exTagDots = (ex.tagIds || []).map(function(id){ return tags.find(function(t){ return t.id===id; }); }).filter(Boolean);
         let dots = exTagDots.map(function(t){ return '<span style="width:8px;height:8px;border-radius:50%;background:'+t.color+';display:inline-block;margin-right:3px;flex-shrink:0;"></span>'; }).join("");
+        const incompleteBadge = !isComplete ? '<span style="font-size:10px;font-weight:700;color:var(--danger);background:#ffe5e3;border-radius:6px;padding:2px 6px;margin-left:6px;vertical-align:middle;white-space:nowrap;">Incomplete</span>' : '';
         html += '<div class="hist-detail-ex-item">'+
-          '<div class="hist-detail-ex-name">'+dots+escapeHtml(ex.name)+'</div>'+
+          '<div class="hist-detail-ex-name">'+dots+escapeHtml(ex.name)+incompleteBadge+'</div>'+
           '<div class="hist-detail-set-pills">';
         if(sets.length){
           sets.forEach(function(s, i){
