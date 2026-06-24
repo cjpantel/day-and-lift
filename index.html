@@ -1452,9 +1452,9 @@
   }
 
   function cascadeAfterTaskChange(task){
-    const key = dateKey(selectedDate);
+    const key = activeTaskDayKey;
     const items = (schedule[key] || []).filter(function(t){ return !t.allDay; });
-    const idx = items.indexOf(task);
+    const idx = items.findIndex(function(t){ return t.id === task.id; });
     if(idx < 0 || !task.time || !task.duration) return;
     let prevEndMin = timeToMinutes(task.time) + task.duration;
     for(let i = idx + 1; i < items.length; i++){
