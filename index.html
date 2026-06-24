@@ -149,6 +149,8 @@
   }
 
   .reorderable{touch-action:pan-y;user-select:none;}
+  #sched-list,#wk-list{user-select:none;}
+  .wakeup-card,.tl-connector{user-select:none;}
   .reorderable.dragging{
     box-shadow:0 10px 26px rgba(20,20,30,.2);
     opacity:.97;
@@ -571,10 +573,13 @@
       });
     }
 
+    listEl.addEventListener("selectstart", function(e){ if(timer || dragging) e.preventDefault(); });
+
     listEl.addEventListener("pointerdown", function(e){
       const row = e.target.closest(".reorderable");
       if(!row || row.parentElement !== listEl) return;
       if(e.target.closest("button, input")) return;
+      e.preventDefault();
       startY = e.clientY;
       clearTimeout(timer);
       timer = setTimeout(function(){
