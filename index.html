@@ -319,11 +319,20 @@
   .ex-sel-dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--ink-faint);flex-shrink:0;}
   .ex-sel-dot.sel{background:var(--accent-workout);border-color:var(--accent-workout);color:#fff;}
   .card.ex-selected{outline:2px solid var(--accent-workout);background:var(--accent-workout-soft);}
-  .wk-select-bar{display:flex;align-items:center;gap:8px;padding:12px 2px;flex-wrap:wrap;}
-  .sel-count{font-size:13px;font-weight:700;color:var(--ink-soft);flex:1;min-width:80px;}
-  .sel-action-btn{background:var(--accent-workout);color:#fff;border:none;border-radius:10px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;}
+  /* Sticky select bar */
+  #wk-select-sticky{display:none;position:sticky;bottom:0;background:var(--bg);flex-direction:column;gap:6px;padding:10px 0 calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);}
+  #wk-select-sticky.visible{display:flex;}
+  .sel-sticky-row{display:flex;align-items:center;gap:8px;}
+  .sel-count-lbl{font-size:13px;font-weight:700;color:var(--ink-soft);flex:1;}
+  .sel-action-btn{background:var(--accent-workout);color:#fff;border:none;border-radius:10px;padding:9px 13px;font-size:13px;font-weight:700;cursor:pointer;flex:1;}
   .sel-action-btn:disabled{opacity:.4;cursor:default;}
-  .sel-cancel-btn{background:none;border:1.5px solid var(--line);border-radius:10px;padding:7px 12px;font-size:13px;font-weight:700;color:var(--ink-soft);cursor:pointer;}
+  .sel-del-btn{background:none;border:1.5px solid var(--danger);color:var(--danger);border-radius:10px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;flex:1;}
+  .sel-del-btn:disabled{opacity:.4;cursor:default;}
+  .sel-all-btn{background:none;border:1.5px solid var(--line);border-radius:10px;padding:8px 13px;font-size:13px;font-weight:700;color:var(--ink-soft);cursor:pointer;}
+  .sel-cancel-btn{background:none;border:1.5px solid var(--line);border-radius:10px;padding:8px 13px;font-size:13px;font-weight:700;color:var(--ink-soft);cursor:pointer;}
+  /* Toast */
+  #wk-toast{position:fixed;top:64px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;font-size:14px;font-weight:700;padding:11px 22px;border-radius:100px;z-index:200;pointer-events:none;opacity:0;transition:opacity .22s ease;white-space:nowrap;}
+  #wk-toast.show{opacity:1;}
   .lib-ex-row{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line);}
   .lib-ex-info{flex:1;min-width:0;}
   .lib-ex-name{font-size:15px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -489,6 +498,18 @@
     <div class="section-label" id="wk-date-label">Today</div>
     <div class="list" id="wk-list"></div>
     <div id="wk-timer-area"></div>
+    <div id="wk-select-sticky">
+      <div class="sel-sticky-row">
+        <button class="sel-all-btn" id="wk-sel-all-btn">Select All</button>
+        <span class="sel-count-lbl" id="wk-sel-count-lbl">0 selected</span>
+        <button class="sel-cancel-btn" id="wk-sel-cancel-btn">Cancel</button>
+      </div>
+      <div class="sel-sticky-row">
+        <button class="sel-action-btn" id="wk-sel-copy-btn" disabled>Copy to Date</button>
+        <button class="sel-action-btn" id="wk-sel-lib-btn" disabled>+ Library</button>
+        <button class="sel-del-btn" id="wk-sel-del-btn" disabled>Delete</button>
+      </div>
+    </div>
     <div class="wk-add-bar">
       <div class="wk-add-row">
         <input type="text" id="wk-input" placeholder="Add exercise…" />
@@ -1264,22 +1285,23 @@
     });
     updateRestCountdown();
     renderTimerArea();
-    if(selectMode){
-      const bar = document.createElement("div");
-      bar.className = "wk-select-bar";
-      const n = selectedExIds.size;
-      bar.innerHTML =
-        '<span class="sel-count">'+(n > 0 ? n+' selected' : 'Tap to select')+'</span>'+
-        '<button class="sel-action-btn" id="sel-copy-btn"'+(n===0?' disabled':'')+'">Copy to Date</button>'+
-        '<button class="sel-action-btn" id="sel-lib-btn"'+(n===0?' disabled':'')+'">+ Library</button>'+
-        '<button class="sel-cancel-btn" id="sel-cancel-btn">Cancel</button>';
-      wkListEl.appendChild(bar);
-      if(n > 0){
-        document.getElementById("sel-copy-btn").addEventListener("click", showCopyDateSheet);
-        document.getElementById("sel-lib-btn").addEventListener("click", addSelectedToLibrary);
+    // Toggle add bar vs select sticky bar
+    const addBar = document.querySelector(".wk-add-bar");
+    const selSticky = document.getElementById("wk-select-sticky");
+    if(addBar) addBar.style.display = selectMode ? "none" : "";
+    if(selSticky){
+      selSticky.classList.toggle("visible", selectMode);
+      if(selectMode){
+        const n = selectedExIds.size;
+        const allSel = items.length > 0 && n === items.length;
+        document.getElementById("wk-sel-count-lbl").textContent = n > 0 ? n + " selected" : "Tap to select";
+        document.getElementById("wk-sel-all-btn").textContent = allSel ? "Deselect All" : "Select All";
+        document.getElementById("wk-sel-copy-btn").disabled = n === 0;
+        document.getElementById("wk-sel-lib-btn").disabled = n === 0;
+        document.getElementById("wk-sel-del-btn").disabled = n === 0;
       }
-      document.getElementById("sel-cancel-btn").addEventListener("click", exitSelectMode);
-    } else {
+    }
+    if(!selectMode){
       const addMoreBtn = document.createElement("button");
       addMoreBtn.className = "wk-add-more-btn";
       addMoreBtn.textContent = "+ Add Exercise";
@@ -1535,16 +1557,64 @@
     selected.forEach(function(ex){ workouts[targetKey].push(cleanExForCopy(ex)); });
     save("dl_workouts", workouts);
     document.getElementById("copy-date-overlay").classList.remove("open");
-    exitSelectMode();
+    // Navigate to the target date
+    const parts = targetKey.split("-");
+    selectedDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    weekStart = startOfWeek(selectedDate);
+    exitSelectMode(); // calls renderWorkout
+    showToast("✓ Copied " + selected.length + " exercise" + (selected.length !== 1 ? "s" : ""));
   });
+
+  function showToast(msg){
+    let t = document.getElementById("wk-toast");
+    if(!t){
+      t = document.createElement("div");
+      t.id = "wk-toast";
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    clearTimeout(t._hideTimer);
+    t.classList.add("show");
+    t._hideTimer = setTimeout(function(){ t.classList.remove("show"); }, 2400);
+  }
 
   function addSelectedToLibrary(){
     const selected = getSelectedExercises();
     if(selected.length === 0) return;
     selected.forEach(function(ex){ library.push(cleanExForCopy(ex)); });
     save("dl_library", library);
+    const n = selected.length;
     exitSelectMode();
+    showToast("✓ " + n + " exercise" + (n !== 1 ? "s" : "") + " saved to library");
   }
+
+  function deleteSelected(){
+    const n = selectedExIds.size;
+    if(n === 0) return;
+    if(!confirm("Delete " + n + " exercise" + (n !== 1 ? "s" : "") + "?")) return;
+    const key = dateKey(selectedDate);
+    workouts[key] = (workouts[key] || []).filter(function(ex){ return !selectedExIds.has(ex.id); });
+    save("dl_workouts", workouts);
+    selectedExIds = new Set();
+    renderWorkout();
+  }
+
+  function selectAll(){
+    const key = dateKey(selectedDate);
+    const items = workouts[key] || [];
+    if(selectedExIds.size === items.length){
+      selectedExIds = new Set();
+    } else {
+      selectedExIds = new Set(items.map(function(ex){ return ex.id; }));
+    }
+    renderWorkout();
+  }
+
+  document.getElementById("wk-sel-cancel-btn").addEventListener("click", exitSelectMode);
+  document.getElementById("wk-sel-copy-btn").addEventListener("click", showCopyDateSheet);
+  document.getElementById("wk-sel-lib-btn").addEventListener("click", addSelectedToLibrary);
+  document.getElementById("wk-sel-del-btn").addEventListener("click", deleteSelected);
+  document.getElementById("wk-sel-all-btn").addEventListener("click", selectAll);
 
   function renderLibrarySheet(){
     library = loadArr("dl_library");
