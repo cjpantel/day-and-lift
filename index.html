@@ -1312,6 +1312,10 @@
     });
   }
 
+  // Guard against ghost-clicks on delete buttons right after a select closes
+  let selectJustChanged = false;
+  function markSelectChanged(){ selectJustChanged = true; setTimeout(function(){ selectJustChanged = false; }, 400); }
+
   function renderTaskItems(){
     const task = currentTask();
     if(!task) return;
@@ -1353,6 +1357,7 @@
       durSel.value = durObj[durProp] != null ? String(durObj[durProp]) : "";
       if(!durSel.value) durSel.selectedIndex = 0;
       durSel.addEventListener("change", function(){
+        markSelectChanged();
         const v = parseInt(durSel.value, 10);
         durObj[durProp] = v > 0 ? v : null;
         save("dl_schedule", schedule);
@@ -1363,6 +1368,7 @@
       del.textContent = "✕";
       del.addEventListener("click", function(e){
         e.stopPropagation();
+        if(selectJustChanged) return;
         if(isFirst){
           if(task.subtasks && task.subtasks.length){
             const promoted = task.subtasks.splice(0,1)[0];
