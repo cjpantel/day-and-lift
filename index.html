@@ -520,6 +520,18 @@
   .hist-detail-set-pills{display:flex;flex-wrap:wrap;gap:5px;}
   .hist-detail-set-pill{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:4px 9px;font-size:12px;font-weight:600;color:var(--ink-soft);}
   .hist-detail-set-pill.done{color:var(--ink);border-color:var(--accent-workout);background:var(--accent-workout-soft);}
+  .hist-detail-dup-btn{display:block;width:100%;border:none;background:var(--accent-workout);color:#fff;font-weight:800;font-size:15px;border-radius:14px;padding:13px;cursor:pointer;margin-top:14px;}
+  .hist-detail-jump-btn2{display:block;width:100%;border:1.5px solid var(--line);background:none;color:var(--ink-soft);font-weight:700;font-size:14px;border-radius:14px;padding:12px;cursor:pointer;margin-top:8px;}
+  /* Duplicate sheet */
+  .hist-dup-ex-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);cursor:pointer;user-select:none;}
+  .hist-dup-ex-check{width:24px;height:24px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;color:transparent;transition:background .12s,border-color .12s;}
+  .hist-dup-ex-row.sel .hist-dup-ex-check{background:var(--accent-workout);border-color:var(--accent-workout);color:#fff;}
+  .hist-dup-ex-info{flex:1;min-width:0;}
+  .hist-dup-ex-name{font-size:14px;font-weight:700;color:var(--ink);}
+  .hist-dup-ex-sub{font-size:12px;color:var(--ink-faint);font-weight:600;margin-top:1px;}
+  .hist-dup-date{display:block;width:100%;border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;font-size:15px;font-weight:600;color:var(--ink);background:var(--card);box-sizing:border-box;}
+  .hist-dup-confirm-btn{display:block;width:100%;border:none;background:var(--accent-workout);color:#fff;font-weight:800;font-size:15px;border-radius:14px;padding:14px;cursor:pointer;margin-top:14px;}
+  .hist-dup-confirm-btn:disabled{opacity:.45;cursor:default;}
 </style>
 </head>
 <body>
@@ -957,7 +969,8 @@
       <h2>Finish Workout</h2>
       <button class="sheet-icon-btn" id="finish-close">✕</button>
     </div>
-    <input type="text" id="finish-name-input" class="finish-name-input" placeholder="Workout name…" />
+    <span class="finish-section-lbl">Workout Title</span>
+    <input type="text" id="finish-name-input" class="finish-name-input" placeholder="e.g. Push Day, Leg Day…" />
     <div class="finish-summary" id="finish-summary"></div>
     <button class="finish-save-btn" id="finish-save-btn">Save Workout</button>
   </div>
@@ -1000,7 +1013,24 @@
       <button class="sheet-icon-btn" id="hist-detail-close">✕</button>
     </div>
     <div id="hist-detail-body"></div>
-    <button class="hist-jump-btn" id="hist-detail-jump">Jump to Day →</button>
+    <button class="hist-detail-dup-btn" id="hist-detail-dup">Duplicate to Day</button>
+    <button class="hist-detail-jump-btn2" id="hist-detail-jump">Jump to Day →</button>
+  </div>
+</div>
+
+<!-- DUPLICATE TO DAY SHEET -->
+<div class="overlay" id="hist-dup-overlay">
+  <div class="sheet" style="--accent-color:var(--accent-workout);">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h2>Duplicate to Day</h2>
+      <button class="sheet-icon-btn" id="hist-dup-close">✕</button>
+    </div>
+    <span class="finish-section-lbl">Target Date</span>
+    <input type="date" id="hist-dup-date" class="hist-dup-date" />
+    <span class="finish-section-lbl" style="margin-top:14px;">Select Exercises</span>
+    <div id="hist-dup-ex-list"></div>
+    <button class="hist-dup-confirm-btn" id="hist-dup-confirm">Duplicate</button>
   </div>
 </div>
 
@@ -3822,6 +3852,7 @@
       views.workout.classList.add("active");
       renderWorkout();
     };
+    document.getElementById("hist-detail-dup").onclick = function(){ openHistDup(entry); };
     document.getElementById("hist-detail-overlay").classList.add("open");
   }
 
@@ -3830,6 +3861,99 @@
   });
   document.getElementById("hist-detail-overlay").addEventListener("click", function(e){
     if(e.target===document.getElementById("hist-detail-overlay")) document.getElementById("hist-detail-overlay").classList.remove("open");
+  });
+
+  /* ================= DUPLICATE TO DAY SHEET ================= */
+
+  let histDupEntry = null;
+  let histDupSelectedIdx = new Set();
+
+  function openHistDup(entry){
+    histDupEntry = entry;
+    histDupSelectedIdx = new Set((entry.exercises || []).map(function(_, i){ return i; }));
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    document.getElementById("hist-dup-date").value = dateKey(tomorrow);
+    renderHistDupExList();
+    document.getElementById("hist-dup-overlay").classList.add("open");
+  }
+
+  function renderHistDupExList(){
+    const listEl = document.getElementById("hist-dup-ex-list");
+    const exercises = (histDupEntry && histDupEntry.exercises) || [];
+    listEl.innerHTML = "";
+    exercises.forEach(function(ex, i){
+      const sel = histDupSelectedIdx.has(i);
+      const row = document.createElement("div");
+      row.className = "hist-dup-ex-row" + (sel ? " sel" : "");
+      const sets = Array.isArray(ex.sets) ? ex.sets : [];
+      const sub = sets.length + " set" + (sets.length !== 1 ? "s" : "") +
+        (sets[0] && sets[0].weight != null ? " · " + sets[0].weight + " lbs" : "") +
+        (sets[0] && sets[0].repsMin != null ? " · " + (sets[0].repsMin === sets[0].repsMax ? sets[0].repsMin : sets[0].repsMin+"–"+sets[0].repsMax) + " reps" : "");
+      row.innerHTML =
+        '<div class="hist-dup-ex-check">' + (sel ? "✓" : "") + '</div>' +
+        '<div class="hist-dup-ex-info">' +
+          '<div class="hist-dup-ex-name">' + escapeHtml(ex.name) + '</div>' +
+          '<div class="hist-dup-ex-sub">' + escapeHtml(sub) + '</div>' +
+        '</div>';
+      row.addEventListener("click", function(){
+        if(histDupSelectedIdx.has(i)){ histDupSelectedIdx.delete(i); } else { histDupSelectedIdx.add(i); }
+        renderHistDupExList();
+        updateHistDupBtn();
+      });
+      listEl.appendChild(row);
+    });
+    updateHistDupBtn();
+  }
+
+  function updateHistDupBtn(){
+    const btn = document.getElementById("hist-dup-confirm");
+    const n = histDupSelectedIdx.size;
+    btn.textContent = n > 0 ? "Duplicate " + n + " Exercise" + (n !== 1 ? "s" : "") : "Select at least one";
+    btn.disabled = n === 0;
+  }
+
+  function confirmHistDup(){
+    if(!histDupEntry || histDupSelectedIdx.size === 0) return;
+    const dateVal = document.getElementById("hist-dup-date").value;
+    if(!dateVal){ showToast("Pick a target date first"); return; }
+    const exercises = (histDupEntry.exercises || []).filter(function(_, i){ return histDupSelectedIdx.has(i); });
+    if(!workouts[dateVal]) workouts[dateVal] = [];
+    exercises.forEach(function(ex){
+      const sets = Array.isArray(ex.sets) ? ex.sets : [];
+      workouts[dateVal].push({
+        id: uid(),
+        name: ex.name,
+        notes: ex.notes || "",
+        tagIds: (ex.tagIds || []).slice(),
+        restBetweenSets: null,
+        restAfter: null,
+        completedAtElapsed: null,
+        sets: sets.map(function(s){
+          return { weight: s.weight, repsMin: s.repsMin, repsMax: s.repsMax, done: false, startedAtElapsed: null, repsActual: null };
+        })
+      });
+    });
+    save("dl_workouts", workouts);
+    document.getElementById("hist-dup-overlay").classList.remove("open");
+    document.getElementById("hist-detail-overlay").classList.remove("open");
+    const parts = dateVal.split("-");
+    selectedDate = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+    weekStart = startOfWeek(selectedDate);
+    navBtns.forEach(function(b){ b.classList.remove("active"); });
+    document.querySelector(".nav-btn[data-target='workout']").classList.add("active");
+    Object.keys(views).forEach(function(k){ views[k].classList.remove("active"); });
+    views.workout.classList.add("active");
+    renderWorkout();
+    showToast("✓ " + exercises.length + " exercise" + (exercises.length !== 1 ? "s" : "") + " duplicated");
+  }
+
+  document.getElementById("hist-dup-confirm").addEventListener("click", confirmHistDup);
+  document.getElementById("hist-dup-close").addEventListener("click", function(){
+    document.getElementById("hist-dup-overlay").classList.remove("open");
+  });
+  document.getElementById("hist-dup-overlay").addEventListener("click", function(e){
+    if(e.target === document.getElementById("hist-dup-overlay")) document.getElementById("hist-dup-overlay").classList.remove("open");
   });
 
   /* ================= LIBRARY EXERCISE DETAIL SHEET ================= */
