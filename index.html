@@ -320,7 +320,8 @@
   .active-set-row.set-done{opacity:0.5;}
   .active-set-row.set-active{background:var(--accent-workout-soft);}
   .active-set-inputs{display:flex;align-items:center;gap:4px;flex:1;}
-  .w-input.mini,.rmin-input.mini,.rmax-input.mini{width:46px;border:1px solid var(--line);border-radius:8px;padding:5px 6px;font-size:14px;font-weight:700;color:var(--ink);background:var(--bg);text-align:center;}
+  .w-input.mini,.rmin-input.mini,.rmax-input.mini,.ractual-input.mini{width:46px;border:1px solid var(--line);border-radius:8px;padding:5px 6px;font-size:14px;font-weight:700;color:var(--ink);background:var(--bg);text-align:center;}
+  .set-target{font-size:12px;color:var(--ink-faint);white-space:nowrap;margin-left:2px;}
   .set-num{font-size:13px;font-weight:700;color:var(--ink-soft);white-space:nowrap;}
   .sep{font-size:13px;color:var(--ink-faint);}
   .start-set-btn{background:none;border:none;font-size:16px;color:var(--ink-faint);cursor:pointer;padding:4px;}
@@ -979,57 +980,98 @@
         wkListEl.appendChild(card);
 
         const setsEl = card.querySelector("#ex-active-sets-"+ex.id);
-        ex.sets.forEach(function(s, i){
-          const row = document.createElement("div");
-          row.className = "active-set-row" + (s.done ? " set-done" : "") + (s.startedAtElapsed != null && !s.done ? " set-active" : "");
-          row.innerHTML =
-            '<button class="set-done-btn'+(s.done?' done':'')+'">'+( s.done?'✓':'○')+'</button>'+
-            '<span class="set-num">Set '+(i+1)+'</span>'+
-            '<div class="active-set-inputs">'+
-              '<input type="number" inputmode="decimal" class="w-input mini" placeholder="lbs" value="'+(s.weight==null?"":s.weight)+'">'+
-              '<input type="number" inputmode="numeric" class="rmin-input mini" placeholder="–" value="'+(s.repsMin==null?"":s.repsMin)+'">'+
-              '<span class="sep">–</span>'+
-              '<input type="number" inputmode="numeric" class="rmax-input mini" placeholder="–" value="'+(s.repsMax==null?"":s.repsMax)+'">'+
-            '</div>'+
-            '<button class="start-set-btn'+(s.startedAtElapsed!=null&&!s.done?' active':'')+'">'+
-              (s.startedAtElapsed!=null&&!s.done ? '●' : '▶')+
-            '</button>';
 
-          row.querySelector(".w-input").addEventListener("input", function(e){
+        function attachDoneInputListeners(inputsEl, s){
+          inputsEl.querySelector(".w-input").addEventListener("input", function(e){
             s.weight = e.target.value === "" ? null : parseFloat(e.target.value);
             save("dl_workouts", workouts);
           });
-          row.querySelector(".rmin-input").addEventListener("input", function(e){
+          const ractual = inputsEl.querySelector(".ractual-input");
+          if(ractual) ractual.addEventListener("input", function(e){
+            s.repsActual = e.target.value === "" ? null : parseInt(e.target.value, 10);
+            save("dl_workouts", workouts);
+          });
+        }
+        function attachPlannedInputListeners(inputsEl, s){
+          inputsEl.querySelector(".w-input").addEventListener("input", function(e){
+            s.weight = e.target.value === "" ? null : parseFloat(e.target.value);
+            save("dl_workouts", workouts);
+          });
+          inputsEl.querySelector(".rmin-input").addEventListener("input", function(e){
             s.repsMin = e.target.value === "" ? null : parseInt(e.target.value, 10);
             save("dl_workouts", workouts);
           });
-          row.querySelector(".rmax-input").addEventListener("input", function(e){
+          inputsEl.querySelector(".rmax-input").addEventListener("input", function(e){
             s.repsMax = e.target.value === "" ? null : parseInt(e.target.value, 10);
             save("dl_workouts", workouts);
           });
+        }
+        function doneInputsHTML(s){
+          const targetStr = (s.repsMin!=null||s.repsMax!=null)
+            ? '<span class="set-target">target: '+(s.repsMin!=null?s.repsMin:'?')+'–'+(s.repsMax!=null?s.repsMax:'?')+'</span>'
+            : '';
+          return '<input type="number" inputmode="decimal" class="w-input mini" placeholder="lbs" value="'+(s.weight==null?"":s.weight)+'">'+
+            '<span class="sep">×</span>'+
+            '<input type="number" inputmode="numeric" class="ractual-input mini" placeholder="reps" value="'+(s.repsActual==null?"":s.repsActual)+'">'+
+            targetStr;
+        }
+        function plannedInputsHTML(s){
+          return '<input type="number" inputmode="decimal" class="w-input mini" placeholder="lbs" value="'+(s.weight==null?"":s.weight)+'">'+
+            '<input type="number" inputmode="numeric" class="rmin-input mini" placeholder="–" value="'+(s.repsMin==null?"":s.repsMin)+'">'+
+            '<span class="sep">–</span>'+
+            '<input type="number" inputmode="numeric" class="rmax-input mini" placeholder="–" value="'+(s.repsMax==null?"":s.repsMax)+'">';
+        }
 
-          row.querySelector(".start-set-btn").addEventListener("click", function(){
-            s.startedAtElapsed = currentTimerElapsed();
-            save("dl_workouts", workouts);
-            clearInterval(restCountdownInterval);
-            restCountdownInterval = null;
-            restCountdownState = null;
-            const cdEl = document.getElementById("wk-rest-cd");
-            if(cdEl) cdEl.remove();
-            this.textContent = "●";
-            this.classList.add("active");
-            row.classList.add("set-active");
-          });
+        ex.sets.forEach(function(s, i){
+          const row = document.createElement("div");
+          row.className = "active-set-row" + (s.done ? " set-done" : "") + (s.startedAtElapsed != null && !s.done ? " set-active" : "");
+
+          if(s.done){
+            row.innerHTML =
+              '<button class="set-done-btn done">✓</button>'+
+              '<span class="set-num">Set '+(i+1)+'</span>'+
+              '<div class="active-set-inputs">'+doneInputsHTML(s)+'</div>';
+            attachDoneInputListeners(row.querySelector(".active-set-inputs"), s);
+          } else {
+            row.innerHTML =
+              '<button class="set-done-btn">○</button>'+
+              '<span class="set-num">Set '+(i+1)+'</span>'+
+              '<div class="active-set-inputs">'+plannedInputsHTML(s)+'</div>'+
+              '<button class="start-set-btn'+(s.startedAtElapsed!=null?' active':'')+'">'+
+                (s.startedAtElapsed!=null ? '●' : '▶')+
+              '</button>';
+            attachPlannedInputListeners(row.querySelector(".active-set-inputs"), s);
+            row.querySelector(".start-set-btn").addEventListener("click", function(){
+              s.startedAtElapsed = currentTimerElapsed();
+              save("dl_workouts", workouts);
+              clearInterval(restCountdownInterval);
+              restCountdownInterval = null;
+              restCountdownState = null;
+              const cdEl = document.getElementById("wk-rest-cd");
+              if(cdEl) cdEl.remove();
+              this.textContent = "●";
+              this.classList.add("active");
+              row.classList.add("set-active");
+            });
+          }
 
           row.querySelector(".set-done-btn").addEventListener("click", function(){
+            const doneBtn = this;
             s.done = !s.done;
             save("dl_workouts", workouts);
             row.classList.toggle("set-done", s.done);
-            this.classList.toggle("done", s.done);
-            this.textContent = s.done ? "✓" : "○";
-            const cdEl = document.getElementById("wk-rest-cd");
-            if(cdEl) cdEl.remove();
+            doneBtn.classList.toggle("done", s.done);
+            doneBtn.textContent = s.done ? "✓" : "○";
+            const inputsEl = row.querySelector(".active-set-inputs");
+
             if(s.done){
+              row.classList.remove("set-active");
+              const startBtn = row.querySelector(".start-set-btn");
+              if(startBtn) startBtn.remove();
+              inputsEl.innerHTML = doneInputsHTML(s);
+              attachDoneInputListeners(inputsEl, s);
+              const cdEl = document.getElementById("wk-rest-cd");
+              if(cdEl) cdEl.remove();
               if(ex.sets.every(function(x){ return x.done; })){
                 ex.completedAtElapsed = currentTimerElapsed();
                 save("dl_workouts", workouts);
@@ -1043,6 +1085,27 @@
                 const setRest = ex.restBetweenSets != null ? ex.restBetweenSets : (settings.wkRestBetweenSets || 90);
                 startRestTimer(ex.id, "set", setRest);
               }
+            } else {
+              inputsEl.innerHTML = plannedInputsHTML(s);
+              attachPlannedInputListeners(inputsEl, s);
+              const newStartBtn = document.createElement("button");
+              newStartBtn.className = "start-set-btn" + (s.startedAtElapsed!=null?" active":"");
+              newStartBtn.textContent = s.startedAtElapsed!=null ? "●" : "▶";
+              newStartBtn.addEventListener("click", function(){
+                s.startedAtElapsed = currentTimerElapsed();
+                save("dl_workouts", workouts);
+                clearInterval(restCountdownInterval);
+                restCountdownInterval = null;
+                restCountdownState = null;
+                const cdEl = document.getElementById("wk-rest-cd");
+                if(cdEl) cdEl.remove();
+                this.textContent = "●";
+                this.classList.add("active");
+                row.classList.add("set-active");
+              });
+              row.appendChild(newStartBtn);
+              const cdEl = document.getElementById("wk-rest-cd");
+              if(cdEl) cdEl.remove();
             }
           });
 
