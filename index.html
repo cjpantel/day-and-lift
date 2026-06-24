@@ -349,13 +349,16 @@
   .lib-del-btn{background:none;border:none;color:var(--ink-faint);font-size:18px;cursor:pointer;padding:4px 6px;flex-shrink:0;}
   .lib-empty{text-align:center;padding:32px 16px;color:var(--ink-faint);font-size:14px;line-height:1.5;}
   #lib-search{display:block;width:100%;border:1.5px solid var(--line);border-radius:14px;padding:11px 14px;font-size:14px;color:var(--ink);background:var(--bg);margin-bottom:12px;box-sizing:border-box;}
-  #wk-suggest-list{display:none;background:var(--card);border:1.5px solid var(--line);border-radius:14px;margin:4px 0 6px;overflow:hidden;}
+  #wk-suggest-list{display:none;position:fixed;left:0;right:0;z-index:40;background:var(--card);border:1.5px solid var(--line);border-radius:16px 16px 0 0;overflow-y:auto;max-height:45vh;box-shadow:0 -4px 20px rgba(0,0,0,.12);}
   #wk-suggest-list.open{display:block;}
-  .wk-suggest-row{display:flex;align-items:center;gap:8px;padding:11px 14px;cursor:pointer;border-bottom:1px solid var(--line);}
+  .wk-suggest-row{display:flex;align-items:center;gap:8px;padding:13px 16px;cursor:pointer;border-bottom:1px solid var(--line);}
   .wk-suggest-row:last-child{border-bottom:none;}
   .wk-suggest-row:active{background:var(--accent-workout-soft);}
   .wk-suggest-name{font-size:14px;font-weight:700;color:var(--ink);}
   .wk-suggest-sub{font-size:12px;color:var(--ink-faint);}
+  .wk-suggest-browse{display:block;width:100%;text-align:center;padding:11px;font-size:13px;font-weight:700;color:var(--accent-workout);background:none;border:none;border-top:1.5px solid var(--line);cursor:pointer;}
+  .wk-suggest-browse:active{opacity:.7;}
+  .wk-search-expand-btn{background:none;border:1px solid var(--line);border-radius:10px;padding:0 10px;font-size:16px;color:var(--ink-faint);cursor:pointer;flex-shrink:0;height:44px;}
   .sets-stepper{display:flex;align-items:center;justify-content:center;gap:20px;padding:16px 0 4px;}
   .sets-stepper-btn{background:none;border:2px solid var(--line);border-radius:50%;width:42px;height:42px;font-size:24px;line-height:1;cursor:pointer;color:var(--ink-soft);display:flex;align-items:center;justify-content:center;}
   .sets-stepper-val{font-size:40px;font-weight:800;color:var(--ink);min-width:52px;text-align:center;font-variant-numeric:tabular-nums;}
@@ -542,9 +545,9 @@
     <div class="wk-add-bar">
       <div class="wk-add-row">
         <input type="text" id="wk-input" placeholder="Add exercise…" autocomplete="off" />
+        <button class="wk-search-expand-btn" id="wk-search-expand" title="Search library">⊞</button>
         <button id="wk-add">Add</button>
       </div>
-      <div id="wk-suggest-list"></div>
       <div class="wk-add-row">
         <select id="wk-reps-input">
           <option value="">Reps</option>
@@ -869,6 +872,9 @@
     </div>
   </div>
 </div>
+
+<!-- Exercise autocomplete suggestion list (fixed, body-level) -->
+<div id="wk-suggest-list"></div>
 
 <script>
 (function(){
@@ -1880,11 +1886,29 @@
     if(el){ el.innerHTML = ""; el.classList.remove("open"); }
   }
 
-  function renderSuggestions(items){
+  function positionSuggestions(){
+    const addBar = document.querySelector(".wk-add-bar");
     const el = document.getElementById("wk-suggest-list");
-    if(!items.length){ el.innerHTML = ""; el.classList.remove("open"); return; }
+    if(!addBar || !el || !el.classList.contains("open")) return;
+    const rect = addBar.getBoundingClientRect();
+    el.style.bottom = (window.innerHeight - rect.top + 2) + "px";
+  }
+
+  function openLibrarySearch(q){
+    hideSuggestions();
+    document.getElementById("lib-search").value = q || "";
+    libSelectMode = false;
+    libSelectedIds = new Set();
+    renderLibrarySheet();
+    document.getElementById("library-overlay").classList.add("open");
+  }
+
+  function renderSuggestions(items, query){
+    const el = document.getElementById("wk-suggest-list");
     el.innerHTML = "";
+    if(!items.length){ el.classList.remove("open"); return; }
     el.classList.add("open");
+    positionSuggestions();
     items.slice(0, 6).forEach(function(libEx){
       const row = document.createElement("div");
       row.className = "wk-suggest-row";
@@ -1901,6 +1925,12 @@
       });
       el.appendChild(row);
     });
+    const browseBtn = document.createElement("button");
+    browseBtn.className = "wk-suggest-browse";
+    browseBtn.textContent = "Browse all in library →";
+    browseBtn.addEventListener("mousedown", function(e){ e.preventDefault(); });
+    browseBtn.addEventListener("click", function(){ openLibrarySearch(query); });
+    el.appendChild(browseBtn);
   }
 
   document.getElementById("wk-input").addEventListener("input", function(){
@@ -1908,11 +1938,15 @@
     if(!q){ hideSuggestions(); return; }
     library = loadArr("dl_library");
     const matches = library.filter(function(ex){ return ex.name.toLowerCase().includes(q); });
-    renderSuggestions(matches);
+    renderSuggestions(matches, q);
   });
   document.getElementById("wk-input").addEventListener("blur", function(){
     setTimeout(hideSuggestions, 160);
   });
+  document.getElementById("wk-search-expand").addEventListener("click", function(){
+    openLibrarySearch(document.getElementById("wk-input").value.trim());
+  });
+  window.addEventListener("resize", positionSuggestions);
 
   /* ---------- sets confirm sheet ---------- */
   function openSetsConfirm(libEx){
