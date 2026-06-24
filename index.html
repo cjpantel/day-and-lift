@@ -922,6 +922,7 @@
       clearInterval(restCountdownInterval);
       restCountdownInterval = null;
       restCountdownState = null;
+      expandedExId = null;
       setTimeout(renderWorkout, 1200);
       return;
     }
@@ -1095,13 +1096,10 @@
               if(cdEl) cdEl.remove();
               if(ex.sets.every(function(x){ return x.done; })){
                 ex.completedAtElapsed = currentTimerElapsed();
-                expandedExId = null;
                 save("dl_workouts", workouts);
                 const afterRest = ex.restAfter != null ? ex.restAfter : restEx;
                 startRestTimer(ex.id, "exercise", afterRest);
-                const newCd = document.createElement("div");
-                newCd.id = "wk-rest-cd";
-                setsEl.after(newCd);
+                renderWorkout();
               } else {
                 const newCd = document.createElement("div");
                 newCd.id = "wk-rest-cd";
