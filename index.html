@@ -1451,10 +1451,29 @@
     });
   }
 
+  function cascadeAfterTaskChange(task){
+    const key = dateKey(selectedDate);
+    const items = (schedule[key] || []).filter(function(t){ return !t.allDay; });
+    const idx = items.indexOf(task);
+    if(idx < 0 || !task.time || !task.duration) return;
+    let prevEndMin = timeToMinutes(task.time) + task.duration;
+    for(let i = idx + 1; i < items.length; i++){
+      const next = items[i];
+      if(next.pinned) break;
+      if(!next.time) break;
+      const nextStart = timeToMinutes(next.time);
+      if(nextStart >= prevEndMin) break;
+      next.time = minutesToTimeStr(prevEndMin);
+      prevEndMin = next.duration ? timeToMinutes(next.time) + next.duration : null;
+      if(prevEndMin === null) break;
+    }
+  }
+
   taskTimeInput.addEventListener("change", function(){
     const task = currentTask();
     if(!task) return;
     task.time = taskTimeInput.value || null;
+    cascadeAfterTaskChange(task);
     save("dl_schedule", schedule);
     renderSchedule();
   });
@@ -1464,6 +1483,7 @@
     if(!task) return;
     const v = parseInt(taskDurInput.value, 10);
     task.duration = v > 0 ? v : null;
+    cascadeAfterTaskChange(task);
     save("dl_schedule", schedule);
     renderSchedule();
   });
