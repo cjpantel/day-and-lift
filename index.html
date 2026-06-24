@@ -1011,7 +1011,7 @@
           (durLabel ? '<span class="task-meta-dur">'+durLabel+'</span>' : '')+
         '</div>'+
         '<div class="task-main-row">'+
-          '<button class="checkbox js-main-check '+(task.done?"done":"")+'">'+(task.done?"✓":"")+'</button>'+
+          '<button class="checkbox js-item-check '+(task.done?"done":"")+'" data-si="-1">'+(task.done?"✓":"")+'</button>'+
           '<div style="flex:1;min-width:0;">'+
             '<div class="task-text '+(task.done?"done":"")+'">'+escapeHtml(task.text)+'</div>'+
             (metaBits.length ? '<div class="task-meta">'+metaBits.join("  ")+'</div>' : "")+
@@ -1019,8 +1019,8 @@
           '<button class="task-del">✕</button>'+
         '</div>'+
         (subs.length ? '<div class="card-subtask-rows">'+subs.map(function(s,si){
-          return '<div class="task-main-row card-subtask-item" data-si="'+si+'">'+
-            '<button class="checkbox js-sub-check '+(s.done?"done":"")+'" data-si="'+si+'">'+(s.done?"✓":"")+'</button>'+
+          return '<div class="task-main-row card-subtask-item">'+
+            '<button class="checkbox js-item-check '+(s.done?"done":"")+'" data-si="'+si+'">'+(s.done?"✓":"")+'</button>'+
             '<div style="flex:1;min-width:0;">'+
               '<div class="task-text '+(s.done?"done":"")+'">'+escapeHtml(s.text)+'</div>'+
               (s.duration ? '<div class="task-meta">'+(s.duration<60?s.duration+' min':s.duration===60?'1 hr':s.duration===90?'1.5 hr':'2 hr')+'</div>' : '')+
@@ -1028,17 +1028,12 @@
           '</div>';
         }).join('')+'</div>' : '');
 
-      card.querySelector(".js-main-check").addEventListener("click", function(e){
-        e.stopPropagation();
-        task.done = !task.done;
-        save("dl_schedule", schedule);
-        renderSchedule();
-      });
-      card.querySelectorAll(".js-sub-check").forEach(function(btn){
+      card.querySelectorAll(".js-item-check").forEach(function(btn){
         btn.addEventListener("click", function(e){
           e.stopPropagation();
           const si = parseInt(btn.dataset.si, 10);
-          task.subtasks[si].done = !task.subtasks[si].done;
+          if(si === -1){ task.done = !task.done; }
+          else { task.subtasks[si].done = !task.subtasks[si].done; }
           save("dl_schedule", schedule);
           renderSchedule();
         });
@@ -1290,11 +1285,10 @@
     const listEl = document.getElementById("task-item-list");
     listEl.innerHTML = "";
 
-    // Helper: build one item row (isMain=true for main task, sub object for subtasks)
-    function buildRow(isMain, obj, idx){
+    // All items rendered identically: checkbox · name · dur select · delete
+    function buildRow(obj, isFirst){
       const row = document.createElement("div");
-      row.className = "task-item-sheet-row" + (isMain ? " main" : "");
-      row.style.cssText = "display:flex;align-items:center;gap:12px;padding:13px 14px;"+(isMain?"":"border-top:1px solid var(--line);");
+      row.style.cssText = "display:flex;align-items:center;gap:10px;padding:12px 14px;"+(isFirst?"":"border-top:1px solid var(--line);");
 
       const check = document.createElement("button");
       check.className = "checkbox" + (obj.done ? " done" : "");
@@ -1306,11 +1300,9 @@
         renderSchedule();
       });
 
-      const body = document.createElement("div");
-      body.style.cssText = "flex:1;min-width:0;";
-
       const nameEl = document.createElement("div");
       nameEl.className = "task-text" + (obj.done ? " done" : "");
+      nameEl.style.cssText = "flex:1;min-width:0;";
       nameEl.textContent = obj.text;
       makeInlineEdit(nameEl, function(){ return obj.text; }, function(v){
         obj.text = v;
@@ -1318,36 +1310,58 @@
         renderTaskItems();
         renderSchedule();
       });
-      body.appendChild(nameEl);
 
-      if(obj.duration){
-        const dl = document.createElement("div");
-        dl.className = "task-meta";
-        dl.textContent = durLabel(obj.duration);
-        body.appendChild(dl);
-      }
+      const durSel = document.createElement("select");
+      durSel.style.cssText = "border:none;background:none;font-size:13px;font-weight:700;color:var(--ink-soft);-webkit-appearance:none;appearance:none;cursor:pointer;max-width:72px;text-align:right;";
+      populateDurSelect(durSel);
+      durSel.value = obj.duration != null ? String(obj.duration) : "";
+      if(!durSel.value) durSel.selectedIndex = 0;
+      durSel.addEventListener("change", function(){
+        const v = parseInt(durSel.value, 10);
+        obj.duration = v > 0 ? v : null;
+        save("dl_schedule", schedule);
+        renderSchedule();
+      });
+
+      const del = document.createElement("button");
+      del.className = "subtask-del";
+      del.textContent = "✕";
+      del.addEventListener("click", function(){
+        if(isFirst){
+          // Promote first subtask to main, or delete whole card if no subtasks
+          if(task.subtasks && task.subtasks.length){
+            const promoted = task.subtasks.splice(0,1)[0];
+            task.text = promoted.text;
+            task.duration = promoted.duration;
+            task.done = promoted.done;
+          } else {
+            const list = schedule[activeTaskDayKey] || [];
+            const i = list.findIndex(function(t){ return t.id === task.id; });
+            if(i>-1) list.splice(i,1);
+            save("dl_schedule", schedule);
+            taskOverlay.classList.remove("open");
+            renderSchedule();
+            return;
+          }
+        } else {
+          const i = (task.subtasks||[]).findIndex(function(s){ return s.id === obj.id; });
+          if(i>-1) task.subtasks.splice(i,1);
+        }
+        save("dl_schedule", schedule);
+        renderTaskItems();
+        renderSchedule();
+      });
 
       row.appendChild(check);
-      row.appendChild(body);
-
-      if(!isMain){
-        const del = document.createElement("button");
-        del.className = "subtask-del";
-        del.textContent = "✕";
-        del.addEventListener("click", function(){
-          task.subtasks.splice(idx, 1);
-          save("dl_schedule", schedule);
-          renderTaskItems();
-          renderSchedule();
-        });
-        row.appendChild(del);
-      }
+      row.appendChild(nameEl);
+      row.appendChild(durSel);
+      row.appendChild(del);
       return row;
     }
 
-    listEl.appendChild(buildRow(true, task, -1));
-    (task.subtasks || []).forEach(function(sub, i){
-      listEl.appendChild(buildRow(false, sub, i));
+    listEl.appendChild(buildRow(task, true));
+    (task.subtasks || []).forEach(function(sub){
+      listEl.appendChild(buildRow(sub, false));
     });
   }
 
