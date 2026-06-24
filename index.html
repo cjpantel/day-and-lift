@@ -1348,21 +1348,6 @@
         renderSchedule();
       });
 
-      const durSel = document.createElement("select");
-      durSel.style.cssText = "border:none;background:none;font-size:13px;font-weight:700;color:var(--ink-soft);-webkit-appearance:none;appearance:none;cursor:pointer;max-width:72px;text-align:right;";
-      populateDurSelect(durSel);
-      // For the first item, use task.selfDuration (independent of card timeline duration)
-      const durProp = isFirst ? "selfDuration" : "duration";
-      const durObj  = isFirst ? task : obj;
-      durSel.value = durObj[durProp] != null ? String(durObj[durProp]) : "";
-      if(!durSel.value) durSel.selectedIndex = 0;
-      durSel.addEventListener("change", function(){
-        markSelectChanged();
-        const v = parseInt(durSel.value, 10);
-        durObj[durProp] = v > 0 ? v : null;
-        save("dl_schedule", schedule);
-      });
-
       const del = document.createElement("button");
       del.className = "subtask-del";
       del.textContent = "✕";
@@ -1396,7 +1381,6 @@
 
       row.appendChild(check);
       row.appendChild(nameEl);
-      row.appendChild(durSel);
       row.appendChild(del);
       return row;
     }
