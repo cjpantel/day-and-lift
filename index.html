@@ -116,6 +116,32 @@
   .time-unset{color:var(--ink-faint);font-style:italic;}
   .task-meta-dur{font-size:12px;font-weight:700;color:var(--ink-faint);}
   .task-main-row{display:flex;align-items:center;gap:12px;}
+  /* Subtask progress pill on card */
+  .subtask-pill{font-size:11px;font-weight:700;color:var(--ink-faint);background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:2px 8px;margin-left:6px;white-space:nowrap;}
+  .subtask-pill.done-all{color:var(--accent-schedule);border-color:var(--accent-schedule);}
+  /* Subtask section in detail sheet */
+  .subtask-section{margin:16px 0 0 0;}
+  .subtask-section-label{font-size:12px;font-weight:800;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;}
+  .subtask-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+  .subtask-row{display:flex;align-items:center;gap:10px;background:var(--bg);border-radius:12px;padding:10px 12px;}
+  .subtask-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--line);background:none;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:transparent;}
+  .subtask-check.done{background:var(--accent-schedule);border-color:var(--accent-schedule);color:#fff;}
+  .subtask-text{flex:1;font-size:14px;font-weight:600;}
+  .subtask-text.done{text-decoration:line-through;color:var(--ink-faint);}
+  .subtask-dur-label{font-size:12px;font-weight:700;color:var(--ink-faint);white-space:nowrap;}
+  .subtask-del{background:none;border:none;color:var(--ink-faint);font-size:14px;cursor:pointer;padding:0 2px;line-height:1;}
+  .subtask-add-row{display:flex;gap:8px;align-items:center;}
+  .subtask-add-input{flex:1;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px 12px;font-size:14px;color:var(--ink);}
+  .subtask-dur-sel{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px 8px;font-size:13px;font-weight:700;color:var(--ink);-webkit-appearance:none;appearance:none;width:90px;}
+  .subtask-add-btn{border:none;background:var(--accent-schedule);color:#fff;font-weight:800;font-size:18px;border-radius:12px;width:40px;height:40px;cursor:pointer;flex-shrink:0;}
+  /* Subtask mini-list on task card */
+  .subtask-preview{margin-top:8px;display:flex;flex-direction:column;gap:4px;padding-left:4px;border-left:2px solid var(--line);}
+  .subtask-preview-row{display:flex;align-items:center;gap:6px;font-size:12px;}
+  .subtask-preview-dot{width:5px;height:5px;border-radius:50%;background:var(--line);flex-shrink:0;}
+  .subtask-preview-row.done .subtask-preview-dot{background:var(--accent-schedule);}
+  .subtask-preview-text{flex:1;color:var(--ink-soft);}
+  .subtask-preview-row.done .subtask-preview-text{text-decoration:line-through;color:var(--ink-faint);}
+  .subtask-preview-dur{color:var(--ink-faint);font-weight:700;}
   /* Timeline connector between cards */
   .tl-connector{
     display:flex;flex-direction:column;align-items:center;gap:0;padding:0;
@@ -449,7 +475,17 @@
       <span class="dur-label">Duration</span>
       <select id="task-dur-input" style="border:none;background:none;font-size:15px;font-weight:700;color:var(--ink);text-align:right;-webkit-appearance:none;appearance:none;cursor:pointer;"></select>
     </div>
-    <textarea id="task-notes" class="task-notes" placeholder="Add notes or useful info…"></textarea>
+    <!-- Subtasks -->
+    <div class="subtask-section">
+      <div class="subtask-section-label">Subtasks</div>
+      <div class="subtask-list" id="task-subtask-list"></div>
+      <div class="subtask-add-row">
+        <input type="text" id="subtask-input" class="subtask-add-input" placeholder="Add subtask…" />
+        <select id="subtask-dur-sel" class="subtask-dur-sel"></select>
+        <button id="subtask-add-btn" class="subtask-add-btn">+</button>
+      </div>
+    </div>
+    <textarea id="task-notes" class="task-notes" placeholder="Add notes or useful info…" style="margin-top:16px;"></textarea>
     <div class="photo-grid" id="task-photo-grid"></div>
     <button class="add-photo-btn" id="task-add-photo-btn">+ Add Photo</button>
     <input type="file" accept="image/*" id="task-photo-input" multiple style="display:none;" />
@@ -935,6 +971,8 @@
       const metaBits = [];
       if(task.notes) metaBits.push("📝");
       if(task.images && task.images.length) metaBits.push("📷 "+task.images.length);
+      const subs = task.subtasks || [];
+      const subsDone = subs.filter(function(s){ return s.done; }).length;
 
       const sm = dispStartMin[idx];
       const em = (sm !== null && task.duration) ? sm + task.duration : null;
@@ -955,11 +993,21 @@
         '<div class="task-main-row">'+
           '<button class="checkbox '+(task.done?"done":"")+'">'+(task.done?"✓":"")+'</button>'+
           '<div style="flex:1;min-width:0;">'+
-            '<div class="task-text '+(task.done?"done":"")+'">'+escapeHtml(task.text)+'</div>'+
+            '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">'+
+              '<div class="task-text '+(task.done?"done":"")+'">'+escapeHtml(task.text)+'</div>'+
+              (subs.length ? '<span class="subtask-pill'+(subsDone===subs.length?" done-all":"")+'">'+subsDone+'/'+subs.length+'</span>' : '')+
+            '</div>'+
             (metaBits.length ? '<div class="task-meta">'+metaBits.join("  ")+'</div>' : "")+
           '</div>'+
           '<button class="task-del">✕</button>'+
-        '</div>';
+        '</div>'+
+        (subs.length ? '<div class="subtask-preview">'+subs.map(function(s){
+          return '<div class="subtask-preview-row'+(s.done?" done":"")+'">'+
+            '<span class="subtask-preview-dot"></span>'+
+            '<span class="subtask-preview-text">'+escapeHtml(s.text)+'</span>'+
+            (s.duration ? '<span class="subtask-preview-dur">'+(s.duration<60?s.duration+' min':s.duration===60?'1 hr':s.duration===90?'1.5 hr':'2 hr')+'</span>' : '')+
+          '</div>';
+        }).join('')+'</div>' : '');
 
       card.querySelector(".checkbox").addEventListener("click", function(e){
         e.stopPropagation();
@@ -1120,6 +1168,7 @@
   populateDurSelect(document.getElementById("task-dur-input"));
   populateTimeSelect(document.getElementById("insert-time-select"));
   populateDurSelect(document.getElementById("insert-dur-select"));
+  populateDurSelect(document.getElementById("subtask-dur-sel"));
 
   /* ---------- task detail sheet (notes + photos) ---------- */
   const taskOverlay = document.getElementById("task-overlay");
@@ -1146,9 +1195,63 @@
     taskTimeInput.value = task.time || "";
     taskDurInput.value = task.duration != null ? String(task.duration) : "";
     taskPhotoError.textContent = "";
+    document.getElementById("subtask-input").value = "";
+    document.getElementById("subtask-dur-sel").selectedIndex = 0;
     renderTaskPhotos();
+    renderSubtasks();
     taskOverlay.classList.add("open");
   }
+
+  function renderSubtasks(){
+    const task = currentTask();
+    if(!task) return;
+    const list = task.subtasks || [];
+    const listEl = document.getElementById("task-subtask-list");
+    listEl.innerHTML = "";
+    list.forEach(function(sub, i){
+      const durText = sub.duration ? (sub.duration < 60 ? sub.duration+' min' : sub.duration === 60 ? '1 hr' : sub.duration === 90 ? '1.5 hr' : '2 hr') : "";
+      const row = document.createElement("div");
+      row.className = "subtask-row";
+      row.innerHTML =
+        '<button class="subtask-check'+(sub.done?" done":"")+'">'+(sub.done?"✓":"")+'</button>'+
+        '<span class="subtask-text'+(sub.done?" done":"")+'">'+escapeHtml(sub.text)+'</span>'+
+        (durText ? '<span class="subtask-dur-label">'+durText+'</span>' : '')+
+        '<button class="subtask-del">✕</button>';
+      row.querySelector(".subtask-check").addEventListener("click", function(){
+        sub.done = !sub.done;
+        save("dl_schedule", schedule);
+        renderSubtasks();
+        renderSchedule();
+      });
+      row.querySelector(".subtask-del").addEventListener("click", function(){
+        list.splice(i, 1);
+        if(!task.subtasks || task.subtasks.length === 0) delete task.subtasks;
+        save("dl_schedule", schedule);
+        renderSubtasks();
+        renderSchedule();
+      });
+      listEl.appendChild(row);
+    });
+  }
+
+  document.getElementById("subtask-add-btn").addEventListener("click", function(){
+    const input = document.getElementById("subtask-input");
+    const durSel = document.getElementById("subtask-dur-sel");
+    const text = input.value.trim();
+    if(!text) return;
+    const task = currentTask();
+    if(!task) return;
+    if(!task.subtasks) task.subtasks = [];
+    const durVal = parseInt(durSel.value, 10);
+    task.subtasks.push({ id: uid(), text: text, duration: durVal > 0 ? durVal : null, done: false });
+    save("dl_schedule", schedule);
+    input.value = ""; durSel.selectedIndex = 0;
+    renderSubtasks();
+    renderSchedule();
+  });
+  document.getElementById("subtask-input").addEventListener("keydown", function(e){
+    if(e.key === "Enter") document.getElementById("subtask-add-btn").click();
+  });
 
   function renderTaskPhotos(){
     const task = currentTask();
