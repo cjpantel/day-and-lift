@@ -298,6 +298,12 @@
   .wk-timer-stats{font-size:13px;font-weight:600;color:var(--ink-soft);}
   .wk-behind{color:var(--danger);}
   .wk-ex-dur{font-size:12px;font-weight:700;color:var(--ink-faint);margin-right:4px;white-space:nowrap;}
+  .wk-done-circle{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--ink-faint);flex-shrink:0;cursor:pointer;}
+  .wk-done-circle.done{background:var(--accent-workout);border-color:var(--accent-workout);color:#fff;}
+  .card.ex-done{opacity:0.55;}
+  .set-done-btn{background:none;border:1.5px solid var(--line);border-radius:50%;width:26px;height:26px;font-size:13px;color:var(--ink-faint);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+  .set-done-btn.done{background:var(--accent-workout);border-color:var(--accent-workout);color:#fff;}
+  .set-row.set-done{opacity:0.5;}
   .wk-rest-connector{display:flex;justify-content:center;padding:4px 0;cursor:pointer;}
   .wk-rest-label{font-size:12px;font-weight:600;color:var(--ink-faint);background:var(--line);border-radius:8px;padding:3px 10px;}
   .wk-rest-connector:active .wk-rest-label{opacity:0.6;}
@@ -902,13 +908,25 @@
       const repsStr = exRepsLabel(ex.sets);
       const subLine = setsDone + ' Set' + (setsDone===1?"":"s") + (repsStr ? ' · ' + repsStr : '');
       const durSec = exerciseDuration(ex);
+      const isDone = ex.completedAtElapsed != null;
+      if(isDone) card.classList.add("ex-done");
       card.innerHTML =
-        '<div class="order-circle">'+(idx+1)+'</div>'+
+        '<div class="wk-done-circle'+(isDone?' done':'')+'">'+( isDone ? '✓' : (idx+1))+'</div>'+
         '<div class="card-body"><div class="name">'+escapeHtml(ex.name)+'</div>'+
         '<div class="sub">'+subLine+'</div></div>'+
         (ex.notes ? '<div style="font-size:12px;color:var(--ink-faint);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;">📝 '+escapeHtml(ex.notes.split('\n')[0])+'</div>' : '')+
         (durSec > 0 ? '<div class="wk-ex-dur">'+fmtDuration(durSec)+'</div>' : '')+
         '<div class="chevron">›</div>';
+      card.querySelector(".wk-done-circle").addEventListener("click", function(e){
+        e.stopPropagation();
+        if(ex.completedAtElapsed != null){
+          ex.completedAtElapsed = null;
+        } else {
+          ex.completedAtElapsed = currentTimerElapsed();
+        }
+        save("dl_workouts", workouts);
+        renderWorkout();
+      });
       card.addEventListener("click", function(){ openSetEditor(key, ex.id); });
       wkListEl.appendChild(card);
       if(idx < items.length - 1){
@@ -973,6 +991,22 @@
     return total;
   }
 
+  function estimatedForCompletedExercises(items){
+    const restEx = settings.wkRestBetweenExercises || 120;
+    let lastDoneIdx = -1;
+    items.forEach(function(ex, i){ if(ex.completedAtElapsed != null) lastDoneIdx = i; });
+    if(lastDoneIdx < 0) return 0;
+    let total = 0;
+    for(var i = 0; i <= lastDoneIdx; i++){
+      total += exerciseDuration(items[i]);
+      if(i < lastDoneIdx){
+        const afterRest = items[i].restAfter != null ? items[i].restAfter : restEx;
+        total += afterRest;
+      }
+    }
+    return total;
+  }
+
   function fmtDuration(sec){
     const m = Math.round(sec / 60);
     if(m < 60) return m + " min";
@@ -1018,13 +1052,26 @@
       html += '<div class="wk-est-time">Est. ' + fmtDuration(totalSec) + '</div>';
       html += '<button class="wk-start-btn" id="wk-timer-btn">▶ Start Workout</button>';
     } else {
-      const remaining = totalSec - elapsedSec;
+      const completedCount = items.filter(function(ex){ return ex.completedAtElapsed != null; }).length;
+      const hasCompletions = completedCount > 0;
+      const estimatedCompleted = estimatedForCompletedExercises(items);
+      const estimatedRemaining = totalSec - estimatedCompleted;
+      const behind = hasCompletions ? (elapsedSec - estimatedCompleted) : 0;
+      const timeLeft = hasCompletions ? estimatedRemaining : Math.max(0, totalSec - elapsedSec);
       html += '<div class="wk-timer-row">';
       html += '<span class="wk-elapsed">' + fmtStopwatch(elapsedSec) + '</span>';
-      if(remaining > 0){
-        html += '<span class="wk-timer-stats">' + fmtDuration(remaining) + ' left · ' + expectedFinishStr(remaining) + '</span>';
+      if(hasCompletions){
+        html += '<span class="wk-timer-stats">' + completedCount + '/' + items.length + ' done</span>';
+      }
+      if(hasCompletions && behind > 5){
+        html += '<span class="wk-timer-stats wk-behind">' + fmtDuration(behind) + ' behind</span>';
+      } else if(hasCompletions && behind < -5){
+        html += '<span class="wk-timer-stats" style="color:var(--accent-workout)">' + fmtDuration(-behind) + ' ahead</span>';
+      }
+      if(timeLeft > 0){
+        html += '<span class="wk-timer-stats">' + fmtDuration(timeLeft) + ' left · ' + expectedFinishStr(timeLeft) + '</span>';
       } else {
-        html += '<span class="wk-timer-stats wk-behind">' + fmtDuration(-remaining) + ' behind · ' + expectedFinishStr(0) + '</span>';
+        html += '<span class="wk-timer-stats wk-behind">All done · ' + expectedFinishStr(0) + '</span>';
       }
       html += '</div>';
       if(isRunning){
@@ -1045,7 +1092,7 @@
     if(timerState.dayKey !== key){
       timerState = { dayKey: key, elapsed: 0, startMs: null, running: false };
     }
-    timerState.startMs = Date.now() - timerState.elapsed * 1000;
+    timerState.startMs = Date.now();
     timerState.running = true;
     save("dl_timer", timerState);
     clearInterval(timerInterval);
@@ -1133,9 +1180,13 @@
     setsContainer.innerHTML = "";
     ex.sets.forEach(function(s, i){
       const row = document.createElement("div");
-      row.className = "set-row";
+      row.className = "set-row" + (s.done ? " set-done" : "");
       row.innerHTML =
-        '<div class="set-row-top"><div class="set-num">Set '+(i+1)+'</div><button class="rm">✕</button></div>'+
+        '<div class="set-row-top">'+
+          '<button class="set-done-btn'+(s.done?' done':'')+'">'+( s.done?'✓':'○')+'</button>'+
+          '<div class="set-num">Set '+(i+1)+'</div>'+
+          '<button class="rm">✕</button>'+
+        '</div>'+
         '<div class="set-fields">'+
           '<div class="field-group">'+
             '<input type="number" inputmode="decimal" class="w-input" placeholder="0" value="'+(s.weight==null?"":s.weight)+'">'+
@@ -1148,6 +1199,17 @@
             '<span class="unit">reps</span>'+
           '</div>'+
         '</div>';
+      row.querySelector(".set-done-btn").addEventListener("click", function(){
+        s.done = !s.done;
+        save("dl_workouts", workouts);
+        const ex = currentExercise();
+        if(ex && ex.sets.every(function(x){ return x.done; }) && ex.completedAtElapsed == null){
+          ex.completedAtElapsed = currentTimerElapsed();
+          save("dl_workouts", workouts);
+        }
+        renderSets();
+        renderWorkout();
+      });
 
       const wInput = row.querySelector(".w-input");
       wInput.addEventListener("input", function(){
