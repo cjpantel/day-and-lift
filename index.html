@@ -468,7 +468,10 @@
     <div class="sheet-handle"></div>
     <div class="sheet-header">
       <h2 style="font-size:13px;font-weight:700;color:var(--ink-faint);margin:0;text-transform:uppercase;letter-spacing:.06em;">Task Details</h2>
-      <button class="sheet-icon-btn" id="task-sheet-close">✕</button>
+      <div style="display:flex;gap:8px;">
+        <button class="sheet-icon-btn danger" id="task-delete-btn" title="Delete card">🗑</button>
+        <button class="sheet-icon-btn" id="task-sheet-close">✕</button>
+      </div>
     </div>
     <div class="dur-row">
       <span class="dur-label">Start Time</span>
@@ -1330,22 +1333,17 @@
       const del = document.createElement("button");
       del.className = "subtask-del";
       del.textContent = "✕";
-      del.addEventListener("click", function(){
+      del.addEventListener("click", function(e){
+        e.stopPropagation();
         if(isFirst){
-          // Promote first subtask to main, or delete whole card if no subtasks
+          // Promote next item up; if none left, don't delete (use trash btn)
           if(task.subtasks && task.subtasks.length){
             const promoted = task.subtasks.splice(0,1)[0];
             task.text = promoted.text;
             task.selfDuration = promoted.duration || null;
             task.done = promoted.done;
           } else {
-            const list = schedule[activeTaskDayKey] || [];
-            const i = list.findIndex(function(t){ return t.id === task.id; });
-            if(i>-1) list.splice(i,1);
-            save("dl_schedule", schedule);
-            taskOverlay.classList.remove("open");
-            renderSchedule();
-            return;
+            return; // last item — use trash button to delete whole card
           }
         } else {
           const i = (task.subtasks||[]).findIndex(function(s){ return s.id === obj.id; });
@@ -1481,8 +1479,43 @@
     taskOverlay.classList.remove("open");
     renderSchedule();
   });
+
+  let taskDeleteArmed = false;
+  const taskDeleteBtn = document.getElementById("task-delete-btn");
+  taskDeleteBtn.addEventListener("click", function(){
+    if(!taskDeleteArmed){
+      taskDeleteArmed = true;
+      taskDeleteBtn.textContent = "Sure?";
+      taskDeleteBtn.style.width = "auto";
+      taskDeleteBtn.style.padding = "0 10px";
+      setTimeout(function(){
+        taskDeleteArmed = false;
+        taskDeleteBtn.textContent = "🗑";
+        taskDeleteBtn.style.width = "";
+        taskDeleteBtn.style.padding = "";
+      }, 2500);
+      return;
+    }
+    const list = schedule[activeTaskDayKey] || [];
+    const i = list.findIndex(function(t){ return t.id === activeTaskId; });
+    if(i > -1) list.splice(i, 1);
+    save("dl_schedule", schedule);
+    taskDeleteArmed = false;
+    taskDeleteBtn.textContent = "🗑";
+    taskDeleteBtn.style.width = "";
+    taskDeleteBtn.style.padding = "";
+    taskOverlay.classList.remove("open");
+    renderSchedule();
+  });
   taskOverlay.addEventListener("click", function(e){
-    if(e.target === taskOverlay){ taskOverlay.classList.remove("open"); renderSchedule(); }
+    if(e.target === taskOverlay){
+      taskDeleteArmed = false;
+      taskDeleteBtn.textContent = "🗑";
+      taskDeleteBtn.style.width = "";
+      taskDeleteBtn.style.padding = "";
+      taskOverlay.classList.remove("open");
+      renderSchedule();
+    }
   });
 
   /* ---------- settings sheet ---------- */
