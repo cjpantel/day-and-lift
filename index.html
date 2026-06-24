@@ -353,6 +353,10 @@
       <button class="sheet-icon-btn" id="task-sheet-close">✕</button>
     </div>
     <div class="dur-row">
+      <span class="dur-label">Start Time</span>
+      <select id="task-time-input" style="border:none;background:none;font-size:15px;font-weight:700;color:var(--ink);text-align:right;-webkit-appearance:none;appearance:none;cursor:pointer;"></select>
+    </div>
+    <div class="dur-row">
       <span class="dur-label">Duration</span>
       <select id="task-dur-input" style="border:none;background:none;font-size:15px;font-weight:700;color:var(--ink);text-align:right;-webkit-appearance:none;appearance:none;cursor:pointer;"></select>
     </div>
@@ -407,8 +411,12 @@
     </div>
     <input type="text" id="insert-task-input" placeholder="Task name…"
       style="width:100%;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:14px;font-size:16px;color:var(--ink);margin-bottom:12px;" />
-    <select id="insert-dur-select"
-      style="width:100%;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:14px;font-size:15px;font-weight:700;color:var(--ink);-webkit-appearance:none;appearance:none;margin-bottom:16px;"></select>
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <select id="insert-time-select"
+        style="flex:1;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:14px;font-size:14px;font-weight:700;color:var(--ink);-webkit-appearance:none;appearance:none;"></select>
+      <select id="insert-dur-select"
+        style="flex:1;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:14px;font-size:14px;font-weight:700;color:var(--ink);-webkit-appearance:none;appearance:none;"></select>
+    </div>
     <button id="insert-confirm-btn"
       style="width:100%;border:none;background:var(--accent-schedule);color:#fff;font-weight:800;font-size:16px;border-radius:14px;padding:15px;">Add Task</button>
   </div>
@@ -796,13 +804,14 @@
     wakeupCard.addEventListener("click", function(){ openWakeupSheet(key); });
     schedListEl.appendChild(wakeupCard);
 
-    // Insert button after wake-up card
+    // Insert button after wake-up card — suggested time = wake-up time itself
     const wakeupInsertBtn = document.createElement("button");
     wakeupInsertBtn.className = "insert-btn";
     wakeupInsertBtn.textContent = "+";
     wakeupInsertBtn.addEventListener("click", function(e){
       e.stopPropagation();
-      openInsertSheet(key, 0);
+      const wt = (settings.wakeupTimes && settings.wakeupTimes[key]) || settings.defaultWakeup || "";
+      openInsertSheet(key, 0, wt);
     });
     schedListEl.appendChild(wakeupInsertBtn);
 
@@ -865,13 +874,16 @@
       });
       card.addEventListener("click", function(){ openTaskDetail(key, task.id); });
 
-      // insert-below button
+      // insert-below button — suggested time = end of this task
       const insertBtn = document.createElement("button");
       insertBtn.className = "insert-btn";
       insertBtn.textContent = "+";
       insertBtn.addEventListener("click", function(e){
         e.stopPropagation();
-        openInsertSheet(key, idx + 1);
+        const sm = dispStartMin[idx];
+        const endMin = (sm !== null && task.duration) ? sm + task.duration : sm;
+        const suggested = endMin !== null ? minutesToTimeStr(endMin) : "";
+        openInsertSheet(key, idx + 1, suggested);
       });
 
       wrapper.appendChild(card);
@@ -960,13 +972,16 @@
 
   populateTimeSelect(document.getElementById("sched-time"));
   populateDurSelect(document.getElementById("sched-dur"));
+  populateTimeSelect(document.getElementById("task-time-input"));
   populateDurSelect(document.getElementById("task-dur-input"));
+  populateTimeSelect(document.getElementById("insert-time-select"));
   populateDurSelect(document.getElementById("insert-dur-select"));
 
   /* ---------- task detail sheet (notes + photos) ---------- */
   const taskOverlay = document.getElementById("task-overlay");
   const taskNotesEl = document.getElementById("task-notes");
   const taskDurInput = document.getElementById("task-dur-input");
+  const taskTimeInput = document.getElementById("task-time-input");
   const taskTitleEl = document.getElementById("task-sheet-title");
   const taskPhotoGrid = document.getElementById("task-photo-grid");
   const taskPhotoInput = document.getElementById("task-photo-input");
@@ -984,6 +999,7 @@
     if(!task) return;
     taskTitleEl.textContent = task.text;
     taskNotesEl.value = task.notes || "";
+    taskTimeInput.value = task.time || "";
     taskDurInput.value = task.duration != null ? String(task.duration) : "";
     taskPhotoError.textContent = "";
     renderTaskPhotos();
@@ -1006,6 +1022,14 @@
       taskPhotoGrid.appendChild(thumb);
     });
   }
+
+  taskTimeInput.addEventListener("change", function(){
+    const task = currentTask();
+    if(!task) return;
+    task.time = taskTimeInput.value || null;
+    save("dl_schedule", schedule);
+    renderSchedule();
+  });
 
   taskDurInput.addEventListener("change", function(){
     const task = currentTask();
@@ -1139,14 +1163,17 @@
   /* ---------- insert-task sheet ---------- */
   const insertOverlay = document.getElementById("insert-overlay");
   const insertTaskInput = document.getElementById("insert-task-input");
+  const insertTimeSel = document.getElementById("insert-time-select");
   const insertDurSel = document.getElementById("insert-dur-select");
   let insertAfterIndex = 0, insertDayKey = null;
 
-  function openInsertSheet(dayKey, afterIndex){
+  function openInsertSheet(dayKey, afterIndex, suggestedTimeStr){
     insertDayKey = dayKey;
     insertAfterIndex = afterIndex;
     insertTaskInput.value = "";
     insertDurSel.selectedIndex = 0;
+    // Pre-fill start time with the cascaded time at this position
+    insertTimeSel.value = suggestedTimeStr || "";
     insertOverlay.classList.add("open");
     setTimeout(function(){ insertTaskInput.focus(); }, 80);
   }
@@ -1163,9 +1190,10 @@
     if(!text) return;
     const durVal = parseInt(insertDurSel.value, 10);
     const duration = durVal > 0 ? durVal : null;
+    const time = insertTimeSel.value || null;
     if(!schedule[insertDayKey]) schedule[insertDayKey] = [];
     const list = schedule[insertDayKey];
-    list.splice(insertAfterIndex, 0, { id: uid(), text: text, time: null, duration: duration, done: false });
+    list.splice(insertAfterIndex, 0, { id: uid(), text: text, time: time, duration: duration, done: false });
     save("dl_schedule", schedule);
     insertOverlay.classList.remove("open");
     renderSchedule();
