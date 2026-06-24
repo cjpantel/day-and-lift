@@ -311,6 +311,21 @@
     width:100%;border:1.5px dashed var(--line);background:none;color:var(--accent-workout);
     font-weight:800;font-size:14px;border-radius:14px;padding:13px;margin-top:4px;cursor:pointer;
   }
+  .ex-active-card{flex-direction:column;align-items:stretch;gap:0;}
+  .ex-active-header{display:flex;align-items:center;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:10px;}
+  .ex-active-sets{display:flex;flex-direction:column;gap:6px;}
+  .active-set-row{display:flex;align-items:center;gap:8px;padding:8px 4px;border-radius:10px;}
+  .active-set-row.set-done{opacity:0.5;}
+  .active-set-row.set-active{background:var(--accent-workout-soft);}
+  .active-set-inputs{display:flex;align-items:center;gap:4px;flex:1;}
+  .w-input.mini,.rmin-input.mini,.rmax-input.mini{width:46px;border:1px solid var(--line);border-radius:8px;padding:5px 6px;font-size:14px;font-weight:700;color:var(--ink);background:var(--bg);text-align:center;}
+  .set-num{font-size:13px;font-weight:700;color:var(--ink-soft);white-space:nowrap;}
+  .sep{font-size:13px;color:var(--ink-faint);}
+  .start-set-btn{background:none;border:none;font-size:16px;color:var(--ink-faint);cursor:pointer;padding:4px;}
+  .start-set-btn.active{color:var(--accent-workout);}
+  .rest-cd{text-align:center;padding:8px 0;font-size:14px;font-weight:700;color:var(--ink-soft);}
+  .rest-cd-time{font-size:20px;font-weight:800;color:var(--accent-workout);font-variant-numeric:tabular-nums;}
+  .rest-cd-done{text-align:center;padding:8px 0;font-size:14px;font-weight:700;color:var(--accent-workout);}
   .add-photo-btn{
     width:100%;border:1.5px dashed var(--line);background:none;color:var(--accent-schedule);
     font-weight:800;font-size:14px;border-radius:14px;padding:12px;margin-top:4px;
@@ -757,6 +772,8 @@
   let settings = load("dl_settings"); // { defaultWakeup: "07:00", wakeupTimes: { "2024-01-01": "06:30" } }
   let timerState = load("dl_timer") || { dayKey: null, elapsed: 0, startMs: null, running: false };
   let timerInterval = null;
+  let restCountdownState = null; // { endMs, exId, type: 'set'|'exercise' }
+  let restCountdownInterval = null;
 
   /* ---------- shared state ---------- */
   const today = new Date();
@@ -884,6 +901,29 @@
     weekStart = startOfWeek(today);
   }
 
+  /* ================= REST COUNTDOWN ================= */
+  function startRestTimer(exId, type, durationSec){
+    restCountdownState = { endMs: Date.now() + durationSec * 1000, exId: exId, type: type };
+    clearInterval(restCountdownInterval);
+    restCountdownInterval = setInterval(updateRestCountdown, 1000);
+    updateRestCountdown();
+  }
+
+  function updateRestCountdown(){
+    const el = document.getElementById("wk-rest-cd");
+    if(!el || !restCountdownState){ if(el) el.innerHTML = ""; return; }
+    const rem = (restCountdownState.endMs - Date.now()) / 1000;
+    if(rem <= 0){
+      el.innerHTML = '<div class="rest-cd-done">Rest done — go!</div>';
+      clearInterval(restCountdownInterval);
+      restCountdownInterval = null;
+      restCountdownState = null;
+      setTimeout(renderWorkout, 1200);
+      return;
+    }
+    el.innerHTML = '<div class="rest-cd"><span class="rest-cd-time">' + fmtStopwatch(rem) + '</span> rest</div>';
+  }
+
   /* ================= WORKOUT TAB ================= */
   const wkStripEl = document.getElementById("wk-strip");
   const wkListEl = document.getElementById("wk-list");
@@ -900,45 +940,153 @@
       return;
     }
     const restEx = settings.wkRestBetweenExercises || 120;
+    const activeIdx = items.findIndex(function(ex){ return ex.completedAtElapsed == null; });
     items.forEach(function(ex, idx){
       const card = document.createElement("div");
-      card.className = "card reorderable";
-      card.dataset.id = ex.id;
       const setsDone = ex.sets.length;
       const repsStr = exRepsLabel(ex.sets);
       const subLine = setsDone + ' Set' + (setsDone===1?"":"s") + (repsStr ? ' · ' + repsStr : '');
       const durSec = exerciseDuration(ex);
       const isDone = ex.completedAtElapsed != null;
-      if(isDone) card.classList.add("ex-done");
-      card.innerHTML =
-        '<div class="wk-done-circle'+(isDone?' done':'')+'">'+( isDone ? '✓' : (idx+1))+'</div>'+
-        '<div class="card-body"><div class="name">'+escapeHtml(ex.name)+'</div>'+
-        '<div class="sub">'+subLine+'</div></div>'+
-        (ex.notes ? '<div style="font-size:12px;color:var(--ink-faint);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;">📝 '+escapeHtml(ex.notes.split('\n')[0])+'</div>' : '')+
-        (durSec > 0 ? '<div class="wk-ex-dur">'+fmtDuration(durSec)+'</div>' : '')+
-        '<div class="chevron">›</div>';
-      card.querySelector(".wk-done-circle").addEventListener("click", function(e){
-        e.stopPropagation();
-        if(ex.completedAtElapsed != null){
-          ex.completedAtElapsed = null;
-        } else {
-          ex.completedAtElapsed = currentTimerElapsed();
-        }
-        save("dl_workouts", workouts);
-        renderWorkout();
-      });
-      card.addEventListener("click", function(){ openSetEditor(key, ex.id); });
-      wkListEl.appendChild(card);
+
+      if(idx === activeIdx){
+        // ---- expanded active exercise ----
+        card.className = "card ex-active-card";
+        card.dataset.id = ex.id;
+        card.innerHTML =
+          '<div class="ex-active-header">'+
+            '<div class="wk-done-circle">'+( idx+1 )+'</div>'+
+            '<div class="card-body"><div class="name">'+escapeHtml(ex.name)+'</div>'+
+            '<div class="sub">'+subLine+'</div></div>'+
+            (durSec > 0 ? '<div class="wk-ex-dur">'+fmtDuration(durSec)+'</div>' : '')+
+            '<div class="chevron" style="cursor:pointer" title="Open editor">›</div>'+
+          '</div>'+
+          '<div class="ex-active-sets" id="ex-active-sets-'+ex.id+'"></div>';
+
+        card.querySelector(".chevron").addEventListener("click", function(e){
+          e.stopPropagation();
+          openSetEditor(key, ex.id);
+        });
+        card.querySelector(".wk-done-circle").addEventListener("click", function(e){
+          e.stopPropagation();
+          ex.completedAtElapsed = ex.completedAtElapsed != null ? null : currentTimerElapsed();
+          save("dl_workouts", workouts);
+          renderWorkout();
+        });
+
+        wkListEl.appendChild(card);
+
+        const setsEl = card.querySelector("#ex-active-sets-"+ex.id);
+        ex.sets.forEach(function(s, i){
+          const row = document.createElement("div");
+          row.className = "active-set-row" + (s.done ? " set-done" : "") + (s.startedAtElapsed != null && !s.done ? " set-active" : "");
+          row.innerHTML =
+            '<button class="set-done-btn'+(s.done?' done':'')+'">'+( s.done?'✓':'○')+'</button>'+
+            '<span class="set-num">Set '+(i+1)+'</span>'+
+            '<div class="active-set-inputs">'+
+              '<input type="number" inputmode="decimal" class="w-input mini" placeholder="lbs" value="'+(s.weight==null?"":s.weight)+'">'+
+              '<input type="number" inputmode="numeric" class="rmin-input mini" placeholder="–" value="'+(s.repsMin==null?"":s.repsMin)+'">'+
+              '<span class="sep">–</span>'+
+              '<input type="number" inputmode="numeric" class="rmax-input mini" placeholder="–" value="'+(s.repsMax==null?"":s.repsMax)+'">'+
+            '</div>'+
+            '<button class="start-set-btn'+(s.startedAtElapsed!=null&&!s.done?' active':'')+'">'+
+              (s.startedAtElapsed!=null&&!s.done ? '●' : '▶')+
+            '</button>';
+
+          row.querySelector(".w-input").addEventListener("input", function(e){
+            s.weight = e.target.value === "" ? null : parseFloat(e.target.value);
+            save("dl_workouts", workouts);
+          });
+          row.querySelector(".rmin-input").addEventListener("input", function(e){
+            s.repsMin = e.target.value === "" ? null : parseInt(e.target.value, 10);
+            save("dl_workouts", workouts);
+          });
+          row.querySelector(".rmax-input").addEventListener("input", function(e){
+            s.repsMax = e.target.value === "" ? null : parseInt(e.target.value, 10);
+            save("dl_workouts", workouts);
+          });
+
+          row.querySelector(".start-set-btn").addEventListener("click", function(){
+            s.startedAtElapsed = currentTimerElapsed();
+            save("dl_workouts", workouts);
+            clearInterval(restCountdownInterval);
+            restCountdownInterval = null;
+            restCountdownState = null;
+            const cdEl = document.getElementById("wk-rest-cd");
+            if(cdEl) cdEl.remove();
+            this.textContent = "●";
+            this.classList.add("active");
+            row.classList.add("set-active");
+          });
+
+          row.querySelector(".set-done-btn").addEventListener("click", function(){
+            s.done = !s.done;
+            save("dl_workouts", workouts);
+            row.classList.toggle("set-done", s.done);
+            this.classList.toggle("done", s.done);
+            this.textContent = s.done ? "✓" : "○";
+            const cdEl = document.getElementById("wk-rest-cd");
+            if(cdEl) cdEl.remove();
+            if(s.done){
+              if(ex.sets.every(function(x){ return x.done; })){
+                ex.completedAtElapsed = currentTimerElapsed();
+                save("dl_workouts", workouts);
+                const afterRest = ex.restAfter != null ? ex.restAfter : restEx;
+                startRestTimer(ex.id, "exercise", afterRest);
+                renderWorkout();
+              } else {
+                const newCd = document.createElement("div");
+                newCd.id = "wk-rest-cd";
+                row.after(newCd);
+                const setRest = ex.restBetweenSets != null ? ex.restBetweenSets : (settings.wkRestBetweenSets || 90);
+                startRestTimer(ex.id, "set", setRest);
+              }
+            }
+          });
+
+          setsEl.appendChild(row);
+        });
+
+      } else {
+        // ---- collapsed exercise ----
+        card.className = "card reorderable";
+        if(isDone) card.classList.add("ex-done");
+        card.dataset.id = ex.id;
+        card.innerHTML =
+          '<div class="wk-done-circle'+(isDone?' done':'')+'">'+( isDone ? '✓' : (idx+1))+'</div>'+
+          '<div class="card-body"><div class="name">'+escapeHtml(ex.name)+'</div>'+
+          '<div class="sub">'+subLine+'</div></div>'+
+          (ex.notes ? '<div style="font-size:12px;color:var(--ink-faint);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;">📝 '+escapeHtml(ex.notes.split('\n')[0])+'</div>' : '')+
+          (durSec > 0 ? '<div class="wk-ex-dur">'+fmtDuration(durSec)+'</div>' : '')+
+          '<div class="chevron">›</div>';
+        card.querySelector(".wk-done-circle").addEventListener("click", function(e){
+          e.stopPropagation();
+          ex.completedAtElapsed = ex.completedAtElapsed != null ? null : currentTimerElapsed();
+          save("dl_workouts", workouts);
+          renderWorkout();
+        });
+        card.addEventListener("click", function(){ openSetEditor(key, ex.id); });
+        wkListEl.appendChild(card);
+      }
+
+      // rest connector between exercises (or countdown if active rest is for this ex)
       if(idx < items.length - 1){
-        const afterRest = ex.restAfter != null ? ex.restAfter : restEx;
-        const restEl = document.createElement("div");
-        restEl.className = "wk-rest-connector";
-        restEl.dataset.exId = ex.id;
-        restEl.innerHTML = '<span class="wk-rest-label">'+fmtDuration(afterRest)+' rest</span>';
-        restEl.addEventListener("click", function(){ openRestEditor(key, ex.id); });
-        wkListEl.appendChild(restEl);
+        if(restCountdownState && restCountdownState.exId === ex.id){
+          const cdWrap = document.createElement("div");
+          cdWrap.id = "wk-rest-cd";
+          wkListEl.appendChild(cdWrap);
+        } else {
+          const afterRest = ex.restAfter != null ? ex.restAfter : restEx;
+          const restEl = document.createElement("div");
+          restEl.className = "wk-rest-connector";
+          restEl.dataset.exId = ex.id;
+          restEl.innerHTML = '<span class="wk-rest-label">'+fmtDuration(afterRest)+' rest</span>';
+          restEl.addEventListener("click", function(){ openRestEditor(key, ex.id); });
+          wkListEl.appendChild(restEl);
+        }
       }
     });
+    updateRestCountdown();
     renderTimerArea();
     // + button after last exercise
     const addMoreBtn = document.createElement("button");
