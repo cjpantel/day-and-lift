@@ -486,7 +486,6 @@
     <!-- Add another item -->
     <div class="subtask-add-row" style="margin-top:10px;">
       <input type="text" id="subtask-input" class="subtask-add-input" placeholder="Add another item…" />
-      <select id="subtask-dur-sel" class="subtask-dur-sel"></select>
       <button id="subtask-add-btn" class="subtask-add-btn">+</button>
     </div>
     <textarea id="task-notes" class="task-notes" placeholder="Add notes or useful info…" style="margin-top:16px;"></textarea>
@@ -1227,7 +1226,6 @@
   populateDurSelect(document.getElementById("task-dur-input"));
   populateTimeSelect(document.getElementById("insert-time-select"));
   populateDurSelect(document.getElementById("insert-dur-select"));
-  populateDurSelect(document.getElementById("subtask-dur-sel"));
 
   /* ---------- task detail sheet (notes + photos) ---------- */
   const taskOverlay = document.getElementById("task-overlay");
@@ -1393,16 +1391,14 @@
 
   document.getElementById("subtask-add-btn").addEventListener("click", function(){
     const input = document.getElementById("subtask-input");
-    const durSel = document.getElementById("subtask-dur-sel");
     const text = input.value.trim();
     if(!text) return;
     const task = currentTask();
     if(!task) return;
     if(!task.subtasks) task.subtasks = [];
-    const durVal = parseInt(durSel.value, 10);
-    task.subtasks.push({ id: uid(), text: text, duration: durVal > 0 ? durVal : null, done: false });
+    task.subtasks.push({ id: uid(), text: text, done: false });
     save("dl_schedule", schedule);
-    input.value = ""; durSel.selectedIndex = 0;
+    input.value = "";
     renderTaskItems();
     renderSchedule();
   });
