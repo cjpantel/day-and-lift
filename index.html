@@ -319,6 +319,8 @@
   .wk-select-btn.active{background:var(--accent-workout);border-color:var(--accent-workout);color:#fff;}
   .wk-lib-link{width:100%;border:1.5px dashed var(--line);background:none;color:var(--ink-soft);font-weight:700;font-size:13px;border-radius:14px;padding:10px;margin-top:4px;cursor:pointer;}
   .wk-lib-date-btn{margin-left:auto;background:none;border:1.5px solid var(--line);border-radius:10px;padding:4px 10px;font-size:12px;font-weight:700;color:var(--ink-soft);cursor:pointer;flex-shrink:0;}
+  .sheet-lib-save-btn{width:100%;border:1.5px dashed var(--line);background:none;color:var(--ink-soft);font-weight:700;font-size:13px;border-radius:14px;padding:11px;margin-top:14px;cursor:pointer;}
+  .sheet-lib-save-btn:active{color:var(--accent-workout);border-color:var(--accent-workout);}
   .lib-sel-actions{display:flex;gap:8px;padding:10px 0 4px;}
   .lib-sel-count{font-size:13px;font-weight:700;color:var(--ink-soft);flex:1;align-self:center;}
   .lib-sel-add-btn{background:var(--accent-workout);color:#fff;border:none;border-radius:10px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;}
@@ -634,6 +636,7 @@
         <option value="300">5 min</option>
       </select>
     </div>
+    <button class="sheet-lib-save-btn" id="sheet-save-to-lib">📚 Save to Library</button>
   </div>
 </div>
 
@@ -2128,6 +2131,25 @@
   document.getElementById("sheet-close").addEventListener("click", function(){
     overlay.classList.remove("open");
     renderWorkout();
+  });
+
+  document.getElementById("sheet-save-to-lib").addEventListener("click", function(){
+    const ex = currentExercise();
+    if(!ex) return;
+    library = loadArr("dl_library");
+    const libEx = cleanExForCopy(ex);
+    const dupIdx = library.findIndex(function(lib){ return lib.name.toLowerCase() === ex.name.toLowerCase(); });
+    if(dupIdx === -1){
+      library.push(libEx);
+      save("dl_library", library);
+      showToast("✓ Saved to library");
+    } else {
+      openLibDupDialog(libEx, library[dupIdx], function(action){
+        if(action === "replace"){ library[dupIdx] = libEx; } else { library.push(libEx); }
+        save("dl_library", library);
+        showToast("✓ Saved to library");
+      });
+    }
   });
   overlay.addEventListener("click", function(e){
     if(e.target === overlay){ overlay.classList.remove("open"); renderWorkout(); }
