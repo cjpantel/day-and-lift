@@ -156,7 +156,7 @@
   .tl-insert-btn:active{border-color:var(--accent-schedule);color:var(--accent-schedule);}
   .tl-insert-icon{font-size:14px;font-weight:800;line-height:1;}
   .tl-gap-time{font-size:12px;font-weight:700;}
-  .tl-free-time{font-size:10px;font-weight:500;opacity:0.55;}
+  .tl-free-time{font-size:11px;font-weight:500;opacity:0.7;}
   .checkbox{
     width:24px;height:24px;border-radius:50%;border:2px solid var(--line);
     flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;
@@ -963,18 +963,20 @@
     const wt = (settings.wakeupTimes && settings.wakeupTimes[key]) || settings.defaultWakeup || "";
     const wakeupConnector = document.createElement("div");
     wakeupConnector.className = "tl-connector";
-    wakeupConnector.innerHTML =
-      '<div class="tl-line"></div>'+
-      '<button class="tl-insert-btn" title="Add task here">'+
-        '<span class="tl-insert-icon">+</span>'+
-        (wt ? '<span class="tl-gap-time">'+formatTime(wt)+'</span>' : '')+
-      '</button>'+
-      '<div class="tl-line"></div>';
     (function(){
       const gapMin = (wt && items.length > 0 && dispStartMin[0] !== null)
         ? dispStartMin[0] - timeToMinutes(wt) : null;
       const tight = gapMin !== null && gapMin <= 0;
       if(tight) wakeupConnector.classList.add("tight");
+      const wuFreeLabel = (gapMin !== null && gapMin > 60) ? formatFreeTime(gapMin) + " free" : "";
+      wakeupConnector.innerHTML =
+        '<div class="tl-line"></div>'+
+        '<button class="tl-insert-btn" title="Add task here">'+
+          '<span class="tl-insert-icon">+</span>'+
+          (wt ? '<span class="tl-gap-time">'+formatTime(wt)+'</span>' : '')+
+          (wuFreeLabel ? '<span class="tl-free-time">'+wuFreeLabel+'</span>' : '')+
+        '</button>'+
+        '<div class="tl-line"></div>';
       wakeupConnector.querySelector(".tl-insert-btn").addEventListener("click", function(e){
         e.stopPropagation();
         openInsertSheet(key, 0, wt, gapMin > 0 ? snapDuration(gapMin) : null);
