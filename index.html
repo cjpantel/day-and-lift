@@ -2359,6 +2359,10 @@
         const idx = ex2.tagIds.indexOf(tag.id);
         if(idx !== -1){ ex2.tagIds.splice(idx,1); } else { ex2.tagIds.push(tag.id); }
         save("dl_workouts", workouts);
+        // Sync back to library and all other instances if this exercise is in the library
+        library = loadArr("dl_library");
+        const libMatch = library.find(function(l){ return l.id === ex2.id; });
+        if(libMatch){ libMatch.tagIds = ex2.tagIds.slice(); save("dl_library", library); syncLibExTagsToInstances(ex2.id, ex2.tagIds); }
         renderExTagPicker();
       });
       scroll.appendChild(chip);
@@ -2388,7 +2392,14 @@
       if(!name) return;
       const tag = createTag(name);
       const ex = currentExercise();
-      if(ex){ if(!ex.tagIds) ex.tagIds = []; ex.tagIds.push(tag.id); save("dl_workouts", workouts); }
+      if(ex){
+        if(!ex.tagIds) ex.tagIds = [];
+        ex.tagIds.push(tag.id);
+        save("dl_workouts", workouts);
+        library = loadArr("dl_library");
+        const libMatch = library.find(function(l){ return l.id === ex.id; });
+        if(libMatch){ libMatch.tagIds = ex.tagIds.slice(); save("dl_library", library); syncLibExTagsToInstances(ex.id, ex.tagIds); }
+      }
       area.innerHTML = "";
       renderExTagPicker();
     }
@@ -4232,6 +4243,24 @@
 
   /* ================= LIBRARY EXERCISE DETAIL SHEET ================= */
 
+  function syncLibExTagsToInstances(libExId, newTagIds){
+    var changed = false;
+    Object.keys(workouts).forEach(function(key){
+      (workouts[key] || []).forEach(function(ex){
+        if(ex.id === libExId){ ex.tagIds = newTagIds.slice(); changed = true; }
+      });
+    });
+    if(changed) save("dl_workouts", workouts);
+    history = loadArr("dl_history");
+    var histChanged = false;
+    history.forEach(function(entry){
+      (entry.exercises || []).forEach(function(ex){
+        if(ex.id === libExId){ ex.tagIds = newTagIds.slice(); histChanged = true; }
+      });
+    });
+    if(histChanged) save("dl_history", history);
+  }
+
   let activeLibExId = null;
 
   function openLibExDetail(libExId){
@@ -4269,6 +4298,7 @@
         const idx = libEx2.tagIds.indexOf(tag.id);
         if(idx!==-1){ libEx2.tagIds.splice(idx,1); } else { libEx2.tagIds.push(tag.id); }
         save("dl_library", library);
+        syncLibExTagsToInstances(activeLibExId, libEx2.tagIds);
         renderLibExTagPicker();
       });
       scroll.appendChild(chip);
@@ -4299,7 +4329,7 @@
       const tag = createTag(name);
       library = loadArr("dl_library");
       const libEx = library.find(function(e){ return e.id===activeLibExId; });
-      if(libEx){ if(!libEx.tagIds) libEx.tagIds=[]; libEx.tagIds.push(tag.id); save("dl_library", library); }
+      if(libEx){ if(!libEx.tagIds) libEx.tagIds=[]; libEx.tagIds.push(tag.id); save("dl_library", library); syncLibExTagsToInstances(activeLibExId, libEx.tagIds); }
       area.innerHTML = "";
       renderLibExTagPicker();
     }
