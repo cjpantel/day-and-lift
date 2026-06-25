@@ -578,6 +578,10 @@
         <select id="sched-time" style="flex:1;"></select>
         <select id="sched-dur" style="flex:1;"></select>
       </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span style="font-size:12px;font-weight:700;color:var(--ink-faint);white-space:nowrap;flex-shrink:0;">End:</span>
+        <select id="sched-end-time" style="flex:1;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:12px 8px;font-size:14px;color:var(--ink);font-weight:700;-webkit-appearance:none;appearance:none;text-align:center;"></select>
+      </div>
     </div>
   </main>
 
@@ -738,6 +742,10 @@
     <div class="dur-row">
       <span class="dur-label">Start Time</span>
       <select id="task-time-input" style="border:none;background:none;font-size:15px;font-weight:700;color:var(--ink);text-align:right;-webkit-appearance:none;appearance:none;cursor:pointer;"></select>
+    </div>
+    <div class="dur-row">
+      <span class="dur-label">End Time</span>
+      <select id="task-end-time-input" style="border:none;background:none;font-size:15px;font-weight:700;color:var(--accent-schedule);text-align:right;-webkit-appearance:none;appearance:none;cursor:pointer;"></select>
     </div>
     <div class="dur-row">
       <span class="dur-label">Duration</span>
@@ -2532,7 +2540,7 @@
       const em = (sm !== null && task.duration) ? sm + task.duration : null;
       const startLabel = sm !== null ? formatTime(minutesToTimeStr(sm)) : "";
       const endLabel   = em !== null ? formatTime(minutesToTimeStr(em)) : "";
-      const durLabel   = task.duration ? (task.duration < 60 ? task.duration+" min" : task.duration === 60 ? "1 hr" : task.duration === 90 ? "1.5 hr" : "2 hr") : "";
+      const durLabel   = task.duration ? fmtDurMin(task.duration) : "";
 
       // Overlap detection for pinned tasks: check if previous task ends after this task's start
       const prevTask = idx > 0 ? items[idx - 1] : null;
@@ -2696,16 +2704,27 @@
     const textInput = document.getElementById("sched-input");
     const timeInput = document.getElementById("sched-time");
     const durInput = document.getElementById("sched-dur");
+    const endTimeInput = document.getElementById("sched-end-time");
     const text = textInput.value.trim();
     if(!text) return;
-    const durVal = parseInt(durInput.value, 10);
-    const duration = durVal > 0 ? durVal : null;
+    let duration = null;
+    const startVal = timeInput.value;
+    const endVal = endTimeInput.value;
+    if(startVal && endVal){
+      // Compute duration from start + end (supports up to 23h 59m, wrapping to next day)
+      let dur = timeToMinutes(endVal) - timeToMinutes(startVal);
+      if(dur <= 0) dur += 24 * 60;
+      if(dur > 0) duration = dur;
+    } else {
+      const durVal = parseInt(durInput.value, 10);
+      duration = durVal > 0 ? durVal : null;
+    }
     const key = dateKey(selectedDate);
     if(!schedule[key]) schedule[key] = [];
-    const isAllDay = !timeInput.value && !duration;
-    schedule[key].push({ id: uid(), text: text, allDay: isAllDay, time: isAllDay ? null : (timeInput.value || null), duration: isAllDay ? null : duration, done: false });
+    const isAllDay = !startVal && !duration;
+    schedule[key].push({ id: uid(), text: text, allDay: isAllDay, time: isAllDay ? null : (startVal || null), duration: isAllDay ? null : duration, done: false });
     save("dl_schedule", schedule);
-    textInput.value = ""; timeInput.selectedIndex = 0; durInput.selectedIndex = 0;
+    textInput.value = ""; timeInput.selectedIndex = 0; durInput.selectedIndex = 0; endTimeInput.selectedIndex = 0;
     renderSchedule();
     renderAlldayList();
   }
@@ -2782,16 +2801,46 @@
 
   populateTimeSelect(document.getElementById("sched-time"));
   populateDurSelect(document.getElementById("sched-dur"));
+  populateTimeSelect(document.getElementById("sched-end-time"));
   populateTimeSelect(document.getElementById("task-time-input"));
+  populateTimeSelect(document.getElementById("task-end-time-input"));
   populateDurSelect(document.getElementById("task-dur-input"));
   populateTimeSelect(document.getElementById("insert-time-select"));
   populateDurSelect(document.getElementById("insert-dur-select"));
+
+  // Sync sched-end-time → sched-dur when start+end are both set
+  document.getElementById("sched-end-time").addEventListener("change", function(){
+    const startVal = document.getElementById("sched-time").value;
+    const endVal = this.value;
+    if(startVal && endVal){
+      const startMin = timeToMinutes(startVal);
+      let endMin = timeToMinutes(endVal);
+      let dur = endMin - startMin;
+      if(dur <= 0) dur += 24 * 60;
+      if(dur > 0){
+        // Try to set duration select; if value not in options it stays blank but addTask reads it directly
+        document.getElementById("sched-dur").value = String(dur);
+      }
+    }
+  });
+
+  // Sync sched-time change: recompute end time display if duration already set
+  document.getElementById("sched-time").addEventListener("change", function(){
+    const startVal = this.value;
+    const durVal = parseInt(document.getElementById("sched-dur").value, 10);
+    const endSel = document.getElementById("sched-end-time");
+    if(startVal && durVal > 0){
+      const endMin = timeToMinutes(startVal) + durVal;
+      endSel.value = minutesToTimeStr(endMin);
+    }
+  });
 
   /* ---------- task detail sheet (notes + photos) ---------- */
   const taskOverlay = document.getElementById("task-overlay");
   const taskNotesEl = document.getElementById("task-notes");
   const taskDurInput = document.getElementById("task-dur-input");
   const taskTimeInput = document.getElementById("task-time-input");
+  const taskEndTimeInput = document.getElementById("task-end-time-input");
   const taskPhotoGrid = document.getElementById("task-photo-grid");
   const taskPhotoInput = document.getElementById("task-photo-input");
   const taskPhotoError = document.getElementById("task-photo-error");
@@ -2837,6 +2886,11 @@
     return list.find(function(t){ return t.id === activeTaskId; });
   }
 
+  function syncTaskEndTime(task){
+    const endMin = (task && task.time && task.duration) ? timeToMinutes(task.time) + task.duration : null;
+    taskEndTimeInput.value = endMin !== null ? minutesToTimeStr(endMin) : "";
+  }
+
   function openTaskDetail(dayKey, taskId){
     activeTaskDayKey = dayKey; activeTaskId = taskId;
     const task = currentTask();
@@ -2844,6 +2898,7 @@
     taskNotesEl.value = task.notes || "";
     taskTimeInput.value = task.time || "";
     taskDurInput.value = task.duration != null ? String(task.duration) : "";
+    syncTaskEndTime(task);
     taskPhotoError.textContent = "";
     document.getElementById("subtask-input").value = "";
     const pinBtn = document.getElementById("task-pin-btn");
@@ -2854,7 +2909,13 @@
     taskOverlay.classList.add("open");
   }
 
-  function durLabel(min){ return !min?"":(min<60?min+" min":min===60?"1 hr":min===90?"1.5 hr":"2 hr"); }
+  function fmtDurMin(min){
+    if(!min || min <= 0) return "";
+    if(min < 60) return min + " min";
+    const h = Math.floor(min / 60), rem = min % 60;
+    return rem > 0 ? h + "h " + rem + "m" : h + "h";
+  }
+  function durLabel(min){ return fmtDurMin(min); }
 
   function makeInlineEdit(el, getCur, onSave){
     el.style.cursor = "pointer";
@@ -3022,7 +3083,30 @@
     task.time = taskTimeInput.value || null;
     cascadeAfterTaskChange(task, oldEndMin);
     save("dl_schedule", schedule);
+    syncTaskEndTime(task);
     renderSchedule();
+  });
+
+  taskEndTimeInput.addEventListener("change", function(){
+    const task = currentTask();
+    if(!task) return;
+    const endVal = taskEndTimeInput.value;
+    if(endVal && task.time){
+      const startMin = timeToMinutes(task.time);
+      let endMin = timeToMinutes(endVal);
+      let dur = endMin - startMin;
+      if(dur <= 0) dur += 24 * 60;
+      if(dur > 0){
+        const oldEndMin = task.duration ? startMin + task.duration : null;
+        task.duration = dur;
+        cascadeAfterTaskChange(task, oldEndMin);
+        taskDurInput.value = String(task.duration);
+        save("dl_schedule", schedule);
+        renderSchedule();
+      }
+    } else if(!endVal){
+      // End time cleared — keep duration as-is
+    }
   });
 
   taskDurInput.addEventListener("change", function(){
@@ -3033,6 +3117,7 @@
     task.duration = v > 0 ? v : null;
     cascadeAfterTaskChange(task, oldEndMin);
     save("dl_schedule", schedule);
+    syncTaskEndTime(task);
     renderSchedule();
   });
 
