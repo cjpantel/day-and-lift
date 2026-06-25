@@ -4334,6 +4334,14 @@
     return /^https?:\/\//i.test(s) ? s : "https://" + s;
   }
 
+  function confirmNoteLink(e){
+    e.preventDefault();
+    const href = e.currentTarget.href;
+    if(confirm("Open this link?\n\n" + href)){
+      window.open(href, "_blank", "noopener,noreferrer");
+    }
+  }
+
   /* ---------- notes home screen ---------- */
   function renderNotes(){
     const searchEl = document.getElementById("notes-search");
@@ -4405,6 +4413,10 @@
       card.addEventListener("click", function(e){
         if(e.target.closest("a")) return;
         openNotePage(note.id);
+      });
+
+      card.querySelectorAll("a.note-link").forEach(function(a){
+        a.addEventListener("click", confirmNoteLink);
       });
 
       listEl.appendChild(card);
@@ -4502,6 +4514,9 @@
       html += '</div>';
     }
     notePageBody.innerHTML = html;
+    notePageBody.querySelectorAll("a.note-ro-link-val").forEach(function(a){
+      a.addEventListener("click", confirmNoteLink);
+    });
   }
 
   function renderNoteEditView(){
