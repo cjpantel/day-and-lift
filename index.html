@@ -540,9 +540,11 @@
   .note-search:focus{outline:none;border-color:var(--accent-notes);}
   .note-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:10px;position:relative;cursor:pointer;}
   .note-card:active{box-shadow:0 0 0 2px var(--accent-notes);}
-  .note-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:6px;}
+  .note-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:4px;}
   .note-title{font-size:16px;font-weight:800;color:var(--ink);flex:1;line-height:1.3;}
-  .note-highlight-chip{flex-shrink:0;display:inline-block;font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px;background:var(--accent-notes-soft);color:var(--accent-notes);white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis;}
+  .note-tag-chip{display:inline-block;font-size:11px;font-weight:800;padding:3px 9px;border-radius:20px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;}
+  .note-card-tags{display:flex;flex-wrap:wrap;gap:3px;flex-shrink:0;max-width:48%;justify-content:flex-end;}
+  .note-subtitle{font-size:13px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;line-height:1.3;}
   .note-desc{font-size:14px;color:var(--ink-soft);line-height:1.55;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
   .note-card-footer{display:flex;align-items:flex-start;gap:8px;margin-top:6px;}
   .note-card-links{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;}
@@ -562,8 +564,9 @@
   .note-page-edit{border:none;background:none;font-size:17px;padding:6px;border-radius:10px;cursor:pointer;line-height:1;color:var(--ink);}
   .note-page-close{border:none;background:none;font-size:18px;padding:6px;border-radius:10px;cursor:pointer;line-height:1;color:var(--ink-faint);font-weight:700;}
   .note-page-body{flex:1;overflow-y:auto;padding:18px 16px 32px;}
-  .note-ro-title{font-size:22px;font-weight:900;color:var(--ink);line-height:1.25;margin-bottom:10px;}
-  .note-ro-chip{display:inline-block;font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;background:var(--accent-notes-soft);color:var(--accent-notes);margin-bottom:14px;}
+  .note-ro-title{font-size:22px;font-weight:900;color:var(--ink);line-height:1.25;margin-bottom:6px;}
+  .note-ro-subtitle{font-size:15px;font-weight:600;color:var(--ink-soft);margin-bottom:12px;line-height:1.35;}
+  .note-ro-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}
   .note-ro-desc{font-size:15px;color:var(--ink-soft);line-height:1.65;white-space:pre-wrap;margin-bottom:16px;}
   .note-ro-links-hdr{font-size:12px;font-weight:800;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;}
   .note-ro-links{display:flex;flex-direction:column;gap:10px;}
@@ -575,8 +578,16 @@
   .note-field::placeholder{color:var(--ink-faint);}
   .note-field:focus{outline:none;border-color:var(--accent-notes);}
   textarea.note-field{min-height:110px;resize:vertical;}
+  .note-tags-section{margin-bottom:12px;}
+  .note-section-hdr{font-size:12px;font-weight:800;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
+  .note-tags-edit-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:4px;}
+  .note-tag-edit-chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:800;padding:4px 8px 4px 11px;border-radius:20px;border:none;cursor:default;}
+  .note-tag-edit-chip button{border:none;background:none;font-size:14px;line-height:1;cursor:pointer;padding:0;opacity:.65;font-weight:400;}
+  .note-tag-add-row{display:flex;gap:8px;}
+  .note-tag-add-input{flex:1;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:9px 12px;font-size:13px;color:var(--ink);font-family:inherit;box-sizing:border-box;}
+  .note-tag-add-input:focus{outline:none;border-color:var(--accent-notes);}
+  .note-tag-add-btn{flex-shrink:0;border:none;background:var(--accent-notes);color:#fff;font-weight:800;font-size:18px;border-radius:10px;padding:0 16px;cursor:pointer;line-height:1;}
   .note-links-section{margin-top:6px;margin-bottom:4px;}
-  .note-links-section-hdr{font-size:12px;font-weight:800;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;}
   .note-link-row{display:flex;align-items:center;gap:7px;margin-bottom:8px;}
   .note-link-row-label{flex:0 0 95px;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:9px 10px;font-size:13px;color:var(--ink);box-sizing:border-box;font-family:inherit;}
   .note-link-row-label:focus{outline:none;border-color:var(--accent-notes);}
@@ -4295,12 +4306,20 @@
   let notes = (function(){
     const raw = loadArr("dl_notes");
     return raw.map(function(n){
-      if(!Array.isArray(n.links)){
-        const links = n.link ? [{ id: uid(), label: "", url: n.link }] : [];
-        const out = { id: n.id, title: n.title, highlight: n.highlight, description: n.description, links: links, createdAt: n.createdAt, updatedAt: n.updatedAt };
-        return out;
+      const out = Object.assign({}, n);
+      // migrate old single link field
+      if(!Array.isArray(out.links)){
+        out.links = out.link ? [{ id: uid(), label: "", url: out.link }] : [];
+        delete out.link;
       }
-      return n;
+      // migrate highlight → subtitle
+      if(out.subtitle === undefined){
+        out.subtitle = out.highlight || "";
+        delete out.highlight;
+      }
+      // ensure tags array
+      if(!Array.isArray(out.tags)) out.tags = [];
+      return out;
     });
   })();
 
@@ -4342,6 +4361,24 @@
     }
   }
 
+  const NOTE_TAG_PALETTE = [
+    { bg:"#D1FAE5", fg:"#059669" },
+    { bg:"#DBEAFE", fg:"#2563EB" },
+    { bg:"#FEF3C7", fg:"#D97706" },
+    { bg:"#F3E8FF", fg:"#7C3AED" },
+    { bg:"#FCE7F3", fg:"#DB2777" },
+    { bg:"#FFEDD5", fg:"#EA580C" },
+  ];
+  function tagColor(tag){
+    let h = 0;
+    for(let i = 0; i < tag.length; i++) h = (h * 31 + tag.charCodeAt(i)) | 0;
+    return NOTE_TAG_PALETTE[Math.abs(h) % NOTE_TAG_PALETTE.length];
+  }
+  function tagChipHtml(tag, cls){
+    const c = tagColor(tag);
+    return '<span class="note-tag-chip ' + (cls||"") + '" style="background:' + c.bg + ';color:' + c.fg + ';">' + escapeHtml(tag) + '</span>';
+  }
+
   /* ---------- notes home screen ---------- */
   function renderNotes(){
     const searchEl = document.getElementById("notes-search");
@@ -4351,10 +4388,12 @@
 
     let filtered = q ? notes.filter(function(n){
       const linkText = (n.links||[]).map(function(l){ return (l.label||"") + " " + (l.url||""); }).join(" ");
+      const tagText = (n.tags||[]).join(" ");
       return (n.title||"").toLowerCase().includes(q) ||
-             (n.highlight||"").toLowerCase().includes(q) ||
+             (n.subtitle||"").toLowerCase().includes(q) ||
              (n.description||"").toLowerCase().includes(q) ||
-             linkText.toLowerCase().includes(q);
+             linkText.toLowerCase().includes(q) ||
+             tagText.toLowerCase().includes(q);
     }) : notes.slice();
 
     filtered.sort(function(a, b){ return (b.updatedAt||0) - (a.updatedAt||0); });
@@ -4370,8 +4409,12 @@
       const card = document.createElement("div");
       card.className = "note-card";
 
-      const chipHtml = note.highlight
-        ? '<span class="note-highlight-chip">' + escapeHtml(note.highlight) + '</span>'
+      const tags = note.tags || [];
+      const tagsHtml = tags.length
+        ? '<div class="note-card-tags">' + tags.map(function(t){ return tagChipHtml(t); }).join("") + '</div>'
+        : '';
+      const subtitleHtml = note.subtitle
+        ? '<div class="note-subtitle">' + escapeHtml(note.subtitle) + '</div>'
         : '';
       const descHtml = note.description
         ? '<div class="note-desc">' + escapeHtml(note.description) + '</div>'
@@ -4402,8 +4445,9 @@
       card.innerHTML =
         '<div class="note-card-header">' +
           '<div class="note-title">' + escapeHtml(note.title || "Untitled") + '</div>' +
-          (chipHtml ? '<div style="flex-shrink:0;">' + chipHtml + '</div>' : '') +
+          tagsHtml +
         '</div>' +
+        subtitleHtml +
         descHtml +
         '<div class="note-card-footer">' +
           linksHtml +
@@ -4474,10 +4518,12 @@
       return ((row.querySelector(".note-link-row-label")||{value:""}).value) + "|" +
              ((row.querySelector(".note-link-row-url")||{value:""}).value);
     });
+    const tagEls = Array.from(document.querySelectorAll(".npe-tag-chip"));
     return JSON.stringify({
       t: titleEl.value,
-      h: (document.getElementById("npe-highlight")||{value:""}).value,
+      s: (document.getElementById("npe-subtitle")||{value:""}).value,
       d: (document.getElementById("npe-desc")||{value:""}).value,
+      tags: tagEls.map(function(el){ return el.dataset.tag; }),
       l: rows
     });
   }
@@ -4488,8 +4534,12 @@
     notePageEditBtn.style.display = "";
 
     let html = '<div class="note-ro-title">' + escapeHtml(note.title || "Untitled") + '</div>';
-    if(note.highlight){
-      html += '<div><span class="note-ro-chip">' + escapeHtml(note.highlight) + '</span></div>';
+    if(note.subtitle){
+      html += '<div class="note-ro-subtitle">' + escapeHtml(note.subtitle) + '</div>';
+    }
+    const tags = note.tags || [];
+    if(tags.length){
+      html += '<div class="note-ro-tags">' + tags.map(function(t){ return tagChipHtml(t); }).join("") + '</div>';
     }
     if(note.description){
       html += '<div class="note-ro-desc">' + escapeHtml(note.description) + '</div>';
@@ -4522,6 +4572,7 @@
   function renderNoteEditView(){
     const note = notePageNoteId ? notes.find(function(n){ return n.id === notePageNoteId; }) : null;
     const links = note ? (note.links || []) : [];
+    const existingTags = note ? (note.tags || []) : [];
 
     let linksRowsHtml = links.map(function(l){
       return '<div class="note-link-row npe-link-row" data-lid="' + escapeHtml(l.id||uid()) + '">' +
@@ -4535,14 +4586,52 @@
 
     notePageBody.innerHTML =
       '<input type="text" id="npe-title" class="note-field" placeholder="Title…" value="' + escapeHtml(note ? (note.title||"") : "") + '" autocomplete="off" />' +
-      '<input type="text" id="npe-highlight" class="note-field" placeholder="Subject / highlight (e.g. Work, Health)" value="' + escapeHtml(note ? (note.highlight||"") : "") + '" autocomplete="off" />' +
+      '<input type="text" id="npe-subtitle" class="note-field" placeholder="Subtitle (optional)" value="' + escapeHtml(note ? (note.subtitle||"") : "") + '" autocomplete="off" />' +
       '<textarea id="npe-desc" class="note-field" placeholder="Description…">' + escapeHtml(note ? (note.description||"") : "") + '</textarea>' +
+      '<div class="note-tags-section">' +
+        '<div class="note-section-hdr">Tags</div>' +
+        '<div id="npe-tags-chips" class="note-tags-edit-chips"></div>' +
+        '<div class="note-tag-add-row">' +
+          '<input type="text" class="note-tag-add-input" id="npe-tag-input" placeholder="Add tag…" autocomplete="off" />' +
+          '<button class="note-tag-add-btn" id="npe-tag-add">+</button>' +
+        '</div>' +
+      '</div>' +
       '<div class="note-links-section">' +
-        '<div class="note-links-section-hdr">Links</div>' +
+        '<div class="note-section-hdr">Links</div>' +
         '<div id="npe-links-container">' + linksRowsHtml + '</div>' +
         '<button class="note-add-link-btn" id="npe-add-link">+ Add Link</button>' +
       '</div>' +
       '<button class="note-save-btn" id="npe-save">' + saveLabel + '</button>';
+
+    // render existing tags
+    const tagsChipsEl = document.getElementById("npe-tags-chips");
+    function addTagChip(tag){
+      tag = tag.trim();
+      if(!tag) return;
+      const existing = Array.from(tagsChipsEl.querySelectorAll(".npe-tag-chip")).map(function(el){ return el.dataset.tag; });
+      if(existing.indexOf(tag) > -1) return;
+      const c = tagColor(tag);
+      const chip = document.createElement("span");
+      chip.className = "note-tag-edit-chip npe-tag-chip";
+      chip.dataset.tag = tag;
+      chip.style.background = c.bg;
+      chip.style.color = c.fg;
+      chip.innerHTML = escapeHtml(tag) + '<button title="Remove tag">×</button>';
+      chip.querySelector("button").addEventListener("click", function(){ chip.remove(); });
+      tagsChipsEl.appendChild(chip);
+    }
+    existingTags.forEach(addTagChip);
+
+    function commitTagInput(){
+      const input = document.getElementById("npe-tag-input");
+      if(!input) return;
+      const val = input.value.trim();
+      if(val){ addTagChip(val); input.value = ""; }
+    }
+    document.getElementById("npe-tag-add").addEventListener("click", commitTagInput);
+    document.getElementById("npe-tag-input").addEventListener("keydown", function(e){
+      if(e.key === "Enter"){ e.preventDefault(); commitTagInput(); }
+    });
 
     function wireRowDel(row){
       row.querySelector(".note-link-row-del").addEventListener("click", function(){
@@ -4566,10 +4655,13 @@
     });
 
     document.getElementById("npe-save").addEventListener("click", function(){
+      commitTagInput();
       const title = document.getElementById("npe-title").value.trim();
-      const highlight = document.getElementById("npe-highlight").value.trim();
+      const subtitle = document.getElementById("npe-subtitle").value.trim();
       const description = document.getElementById("npe-desc").value.trim();
       if(!title && !description) return;
+
+      const newTags = Array.from(tagsChipsEl.querySelectorAll(".npe-tag-chip")).map(function(el){ return el.dataset.tag; }).filter(Boolean);
 
       const newLinks = Array.from(document.querySelectorAll(".npe-link-row")).map(function(row){
         const lbl = (row.querySelector(".note-link-row-label")||{value:""}).value.trim();
@@ -4581,10 +4673,10 @@
       if(notePageNoteId){
         const idx = notes.findIndex(function(n){ return n.id === notePageNoteId; });
         if(idx > -1){
-          notes[idx] = Object.assign({}, notes[idx], { title: title, highlight: highlight, description: description, links: newLinks, updatedAt: now });
+          notes[idx] = Object.assign({}, notes[idx], { title: title, subtitle: subtitle, description: description, tags: newTags, links: newLinks, updatedAt: now });
         }
       } else {
-        const newNote = { id: uid(), title: title, highlight: highlight, description: description, links: newLinks, createdAt: now, updatedAt: now };
+        const newNote = { id: uid(), title: title, subtitle: subtitle, description: description, tags: newTags, links: newLinks, createdAt: now, updatedAt: now };
         notes.push(newNote);
         notePageNoteId = newNote.id;
         notePageDelBtn.style.display = "";
