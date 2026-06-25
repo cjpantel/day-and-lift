@@ -1806,17 +1806,14 @@
         html += '<div class="wk-est-time" style="margin-bottom:4px;">Paused</div>';
         html += '<button class="wk-start-btn" id="wk-timer-btn">▶ Resume</button>';
       }
-      html += '<button class="wk-finish-btn" id="wk-finish-btn">✓ Finish Workout</button>';
-      html += '<button class="wk-reset-btn" id="wk-workout-reset">↺ Restart Workout</button>';
+      html += '<button class="wk-finish-btn" id="wk-finish-btn">↺ Reset Workout</button>';
     }
     html += '</div>';
     area.innerHTML = html;
     const btn = document.getElementById("wk-timer-btn");
     if(btn) btn.addEventListener("click", isRunning ? pauseTimer : startTimer);
     const finishBtn = document.getElementById("wk-finish-btn");
-    if(finishBtn) finishBtn.addEventListener("click", openFinishWorkout);
-    const resetBtn = document.getElementById("wk-workout-reset");
-    if(resetBtn) resetBtn.addEventListener("click", resetWorkout);
+    if(finishBtn) finishBtn.addEventListener("click", resetWorkout);
   }
 
   function startTimer(){
@@ -1852,7 +1849,7 @@
   }
 
   function resetWorkout(){
-    if(!confirm("Restart workout? This will reset the timer and all progress.")) return;
+    if(!confirm("Reset workout? This will clear the timer and all progress.")) return;
     clearInterval(timerInterval);
     timerInterval = null;
     clearInterval(restCountdownInterval);
