@@ -829,7 +829,7 @@
     </div>
     <div class="dur-row">
       <span class="dur-label">End Time</span>
-      <select id="task-end-time-input" style="border:none;background:none;font-size:15px;font-weight:700;color:var(--accent-schedule);text-align:right;-webkit-appearance:none;appearance:none;cursor:pointer;"></select>
+      <select id="task-end-time-input" style="border:none;background:none;font-size:15px;font-weight:700;color:var(--ink);text-align:right;-webkit-appearance:none;appearance:none;cursor:pointer;"></select>
     </div>
     <div class="dur-row">
       <span class="dur-label">Duration</span>
@@ -847,6 +847,7 @@
     <button class="add-photo-btn" id="task-add-photo-btn">+ Add Photo</button>
     <input type="file" accept="image/*" id="task-photo-input" multiple style="display:none;" />
     <div class="photo-error" id="task-photo-error"></div>
+    <button id="task-save-btn" class="note-save-btn" style="background:var(--accent-schedule);">Save Changes</button>
   </div>
 </div>
 
@@ -2991,6 +2992,8 @@
   const taskPhotoInput = document.getElementById("task-photo-input");
   const taskPhotoError = document.getElementById("task-photo-error");
   let activeTaskDayKey = null, activeTaskId = null;
+  let taskSheetSnapshot = null;
+  let taskSheetDirty = false;
 
   // Makes an <h2> element inline-editable on click, calls onSave(newText) on commit
   function makeEditableTitle(el, onSave){
@@ -3037,8 +3040,29 @@
     taskEndTimeInput.value = endMin !== null ? minutesToTimeStr(endMin) : "";
   }
 
+  function updateTaskSnapshot(){
+    taskSheetSnapshot = JSON.parse(JSON.stringify(schedule[activeTaskDayKey] || []));
+  }
+
+  function closeTaskSheet(force){
+    if(!force && taskSheetDirty){
+      if(!confirm("You have unsaved changes. Discard them?")) return;
+      if(taskSheetSnapshot !== null) schedule[activeTaskDayKey] = JSON.parse(JSON.stringify(taskSheetSnapshot));
+      renderSchedule();
+    }
+    taskSheetDirty = false;
+    taskSheetSnapshot = null;
+    taskDeleteArmed = false;
+    taskDeleteBtn.textContent = "🗑";
+    taskDeleteBtn.style.width = "";
+    taskDeleteBtn.style.padding = "";
+    taskOverlay.classList.remove("open");
+  }
+
   function openTaskDetail(dayKey, taskId){
     activeTaskDayKey = dayKey; activeTaskId = taskId;
+    taskSheetDirty = false;
+    taskSheetSnapshot = JSON.parse(JSON.stringify(schedule[dayKey] || []));
     const task = currentTask();
     if(!task) return;
     taskNotesEl.value = task.notes || "";
@@ -3100,6 +3124,7 @@
       check.addEventListener("click", function(){
         obj.done = !obj.done;
         save("dl_schedule", schedule);
+        updateTaskSnapshot();
         renderTaskItems();
         renderSchedule();
       });
@@ -3111,6 +3136,7 @@
       makeInlineEdit(nameEl, function(){ return obj.text; }, function(v){
         obj.text = v;
         save("dl_schedule", schedule);
+        updateTaskSnapshot();
         renderTaskItems();
         renderSchedule();
       });
@@ -3133,6 +3159,7 @@
             task.selfDuration = promoted.duration || null;
             task.done = promoted.done;
             save("dl_schedule", schedule);
+            updateTaskSnapshot();
             renderTaskItems(); renderSchedule();
           } else {
             // last item — delete whole card
@@ -3140,6 +3167,8 @@
             const i = list.findIndex(function(t){ return t.id === task.id; });
             if(i > -1) list.splice(i, 1);
             save("dl_schedule", schedule);
+            taskSheetDirty = false;
+            taskSheetSnapshot = null;
             taskOverlay.classList.remove("open");
             renderSchedule();
           }
@@ -3147,6 +3176,7 @@
           const i = (task.subtasks||[]).findIndex(function(s){ return s.id === obj.id; });
           if(i > -1) task.subtasks.splice(i, 1);
           save("dl_schedule", schedule);
+          updateTaskSnapshot();
           renderTaskItems(); renderSchedule();
         }
       });
@@ -3172,6 +3202,7 @@
     if(!task.subtasks) task.subtasks = [];
     task.subtasks.push({ id: uid(), text: text, done: false });
     save("dl_schedule", schedule);
+    updateTaskSnapshot();
     input.value = "";
     renderTaskItems();
     renderSchedule();
@@ -3191,6 +3222,7 @@
       thumb.querySelector(".photo-rm").addEventListener("click", function(){
         task.images.splice(i,1);
         save("dl_schedule", schedule);
+        updateTaskSnapshot();
         renderTaskPhotos();
       });
       taskPhotoGrid.appendChild(thumb);
@@ -3228,8 +3260,8 @@
     const oldEndMin = (task.time && task.duration) ? timeToMinutes(task.time) + task.duration : null;
     task.time = taskTimeInput.value || null;
     cascadeAfterTaskChange(task, oldEndMin);
-    save("dl_schedule", schedule);
     syncTaskEndTime(task);
+    taskSheetDirty = true;
     renderSchedule();
   });
 
@@ -3247,11 +3279,9 @@
         task.duration = dur;
         cascadeAfterTaskChange(task, oldEndMin);
         taskDurInput.value = String(task.duration);
-        save("dl_schedule", schedule);
+        taskSheetDirty = true;
         renderSchedule();
       }
-    } else if(!endVal){
-      // End time cleared — keep duration as-is
     }
   });
 
@@ -3262,8 +3292,8 @@
     const v = parseInt(taskDurInput.value, 10);
     task.duration = v > 0 ? v : null;
     cascadeAfterTaskChange(task, oldEndMin);
-    save("dl_schedule", schedule);
     syncTaskEndTime(task);
+    taskSheetDirty = true;
     renderSchedule();
   });
 
@@ -3271,7 +3301,7 @@
     const task = currentTask();
     if(!task) return;
     task.notes = taskNotesEl.value;
-    save("dl_schedule", schedule);
+    taskSheetDirty = true;
   });
 
   document.getElementById("task-add-photo-btn").addEventListener("click", function(){
@@ -3290,6 +3320,8 @@
         if(!ok){
           task.images.pop();
           taskPhotoError.textContent = "Couldn't save that photo — storage is full.";
+        } else {
+          updateTaskSnapshot();
         }
         renderTaskPhotos();
       }, function(){
@@ -3322,9 +3354,15 @@
     reader.readAsDataURL(file);
   }
 
-  document.getElementById("task-sheet-close").addEventListener("click", function(){
-    taskOverlay.classList.remove("open");
+  document.getElementById("task-save-btn").addEventListener("click", function(){
+    save("dl_schedule", schedule);
+    taskSheetDirty = false;
+    updateTaskSnapshot();
     renderSchedule();
+  });
+
+  document.getElementById("task-sheet-close").addEventListener("click", function(){
+    closeTaskSheet(false);
   });
 
   let taskDeleteArmed = false;
@@ -3333,6 +3371,7 @@
     if(!task) return;
     task.pinned = !task.pinned;
     save("dl_schedule", schedule);
+    updateTaskSnapshot();
     const pinBtn = document.getElementById("task-pin-btn");
     pinBtn.style.opacity = task.pinned ? "1" : "0.35";
     pinBtn.title = task.pinned ? "Unpin time" : "Pin time";
@@ -3358,6 +3397,8 @@
     const i = list.findIndex(function(t){ return t.id === activeTaskId; });
     if(i > -1) list.splice(i, 1);
     save("dl_schedule", schedule);
+    taskSheetDirty = false;
+    taskSheetSnapshot = null;
     taskDeleteArmed = false;
     taskDeleteBtn.textContent = "🗑";
     taskDeleteBtn.style.width = "";
@@ -3366,14 +3407,7 @@
     renderSchedule();
   });
   taskOverlay.addEventListener("click", function(e){
-    if(e.target === taskOverlay){
-      taskDeleteArmed = false;
-      taskDeleteBtn.textContent = "🗑";
-      taskDeleteBtn.style.width = "";
-      taskDeleteBtn.style.padding = "";
-      taskOverlay.classList.remove("open");
-      renderSchedule();
-    }
+    if(e.target === taskOverlay) closeTaskSheet(false);
   });
 
   /* ---------- settings sheet ---------- */
