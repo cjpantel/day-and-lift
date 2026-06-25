@@ -550,8 +550,6 @@
   .note-link-plain{font-size:12px;font-weight:600;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;}
   .note-link:active{opacity:.7;}
   .note-time{font-size:11px;color:var(--ink-faint);font-weight:600;flex-shrink:0;margin-left:auto;padding-top:1px;}
-  .note-card-del{flex-shrink:0;border:none;background:none;font-size:15px;color:var(--ink-faint);padding:2px 5px;border-radius:8px;cursor:pointer;line-height:1;}
-  .note-card-del.armed{color:#ef4444;font-size:11px;font-weight:700;background:#fee2e2;padding:3px 7px;border-radius:8px;}
 
   /* Full-page note view */
   .note-page{position:fixed;top:0;left:0;right:0;bottom:0;z-index:60;background:var(--bg);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);overscroll-behavior:contain;padding-top:env(safe-area-inset-top,0px);}
@@ -4379,7 +4377,7 @@
           const urlLike = isNoteUrl(l.url||"");
           if(urlLike && l.url){
             const disp = l.label || (l.url||"").replace(/^https?:\/\//i,"").split(/[/?#]/)[0];
-            return '<a class="note-link" href="' + escapeHtml(normalizeNoteUrl(l.url)) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(disp) + '</a>';
+            return '<a class="note-link" href="' + escapeHtml(normalizeNoteUrl(l.url)) + '" target="_blank" rel="noopener noreferrer">🔗 ' + escapeHtml(disp) + '</a>';
           }
           if(l.label && l.url){
             return '<span class="note-link-plain">' + escapeHtml(l.label) + ': ' + escapeHtml(l.url) + '</span>';
@@ -4396,10 +4394,7 @@
       card.innerHTML =
         '<div class="note-card-header">' +
           '<div class="note-title">' + escapeHtml(note.title || "Untitled") + '</div>' +
-          '<div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">' +
-            chipHtml +
-            '<button class="note-card-del" title="Delete note">🗑</button>' +
-          '</div>' +
+          (chipHtml ? '<div style="flex-shrink:0;">' + chipHtml + '</div>' : '') +
         '</div>' +
         descHtml +
         '<div class="note-card-footer">' +
@@ -4408,28 +4403,8 @@
         '</div>';
 
       card.addEventListener("click", function(e){
-        if(e.target.closest(".note-card-del") || e.target.closest("a")) return;
+        if(e.target.closest("a")) return;
         openNotePage(note.id);
-      });
-
-      const cardDelBtn = card.querySelector(".note-card-del");
-      cardDelBtn.addEventListener("click", function(e){
-        e.stopPropagation();
-        if(!cardDelBtn.classList.contains("armed")){
-          cardDelBtn.classList.add("armed");
-          cardDelBtn.textContent = "Sure?";
-          setTimeout(function(){
-            if(cardDelBtn.classList.contains("armed")){
-              cardDelBtn.classList.remove("armed");
-              cardDelBtn.textContent = "🗑";
-            }
-          }, 2500);
-          return;
-        }
-        const idx = notes.findIndex(function(n){ return n.id === note.id; });
-        if(idx > -1) notes.splice(idx, 1);
-        save("dl_notes", notes);
-        renderNotes();
       });
 
       listEl.appendChild(card);
