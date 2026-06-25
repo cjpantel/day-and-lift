@@ -17,6 +17,8 @@
     --accent-workout-soft:#FFE7DE;
     --accent-schedule:#4C5FD5;
     --accent-schedule-soft:#E6E8FB;
+    --accent-notes:#10B981;
+    --accent-notes-soft:#D1FAE5;
     --ink:#16181D;
     --ink-soft:#6B6F76;
     --ink-faint:#A4A8AF;
@@ -532,6 +534,26 @@
   .hist-dup-date{display:block;width:100%;border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;font-size:15px;font-weight:600;color:var(--ink);background:var(--card);box-sizing:border-box;}
   .hist-dup-confirm-btn{display:block;width:100%;border:none;background:var(--accent-workout);color:#fff;font-weight:800;font-size:15px;border-radius:14px;padding:14px;cursor:pointer;margin-top:14px;}
   .hist-dup-confirm-btn:disabled{opacity:.45;cursor:default;}
+
+  /* Notes */
+  .note-search{display:block;width:100%;border:1.5px solid var(--line);border-radius:14px;padding:11px 14px;font-size:14px;color:var(--ink);background:var(--card);margin-bottom:14px;box-sizing:border-box;}
+  .note-search:focus{outline:none;border-color:var(--accent-notes);}
+  .note-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;cursor:pointer;margin-bottom:10px;}
+  .note-card:active{box-shadow:0 0 0 2px var(--accent-notes);}
+  .note-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px;}
+  .note-title{font-size:16px;font-weight:800;color:var(--ink);flex:1;line-height:1.3;}
+  .note-highlight-chip{flex-shrink:0;display:inline-block;font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px;background:var(--accent-notes-soft);color:var(--accent-notes);white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;}
+  .note-desc{font-size:14px;color:var(--ink-soft);line-height:1.55;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+  .note-card-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;}
+  .note-link{font-size:12px;font-weight:700;color:var(--accent-notes);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%;}
+  .note-link:active{opacity:.7;}
+  .note-time{font-size:11px;color:var(--ink-faint);font-weight:600;flex-shrink:0;margin-left:auto;}
+  .note-field{display:block;width:100%;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:12px 14px;font-size:15px;color:var(--ink);margin-bottom:10px;box-sizing:border-box;font-family:inherit;}
+  .note-field::placeholder{color:var(--ink-faint);}
+  .note-field:focus{outline:none;border-color:var(--accent-notes);}
+  textarea.note-field{min-height:110px;resize:vertical;}
+  .note-save-btn{display:block;width:100%;border:none;background:var(--accent-notes);color:#fff;font-weight:800;font-size:16px;border-radius:14px;padding:14px;cursor:pointer;margin-top:4px;}
+  .note-save-btn:active{opacity:.85;}
 </style>
 </head>
 <body>
@@ -654,6 +676,16 @@
     <div id="hist-list" style="flex:1;overflow-y:auto;"></div>
   </main>
 
+  <!-- NOTES VIEW -->
+  <main class="view" id="view-notes" style="--accent-color:var(--accent-notes);">
+    <div class="top-bar">
+      <h1>Notes</h1>
+      <button id="notes-new-btn" style="border:none;background:var(--accent-notes);color:#fff;font-weight:800;font-size:14px;border-radius:14px;padding:8px 16px;cursor:pointer;flex-shrink:0;">+ New</button>
+    </div>
+    <input type="search" id="notes-search" class="note-search" placeholder="Search notes…" autocomplete="off" />
+    <div id="notes-list" style="flex:1;overflow-y:auto;"></div>
+  </main>
+
   <nav class="bottom-nav">
     <button class="nav-btn active" data-target="schedule" style="--nav-accent:var(--accent-schedule);">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
@@ -666,6 +698,10 @@
     <button class="nav-btn" data-target="history" style="--nav-accent:var(--accent-workout);">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
       History
+    </button>
+    <button class="nav-btn" data-target="notes" style="--nav-accent:var(--accent-notes);">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+      Notes
     </button>
   </nav>
 </div>
@@ -1044,6 +1080,25 @@
 
 <!-- Exercise autocomplete suggestion list (fixed, body-level) -->
 <div id="wk-suggest-list"></div>
+
+<!-- NOTE EDITOR SHEET -->
+<div class="overlay" id="note-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h2 id="note-sheet-title">New Note</h2>
+      <div style="display:flex;gap:8px;">
+        <button class="sheet-icon-btn danger" id="note-delete-btn">🗑</button>
+        <button class="sheet-icon-btn" id="note-sheet-close">✕</button>
+      </div>
+    </div>
+    <input type="text" id="note-title-input" class="note-field" placeholder="Title…" autocomplete="off" />
+    <input type="text" id="note-highlight-input" class="note-field" placeholder="Subject / highlight (e.g. Work, Health)" autocomplete="off" />
+    <textarea id="note-desc-input" class="note-field" placeholder="Description…"></textarea>
+    <input type="text" id="note-link-input" class="note-field" placeholder="Link (optional, e.g. https://…)" autocomplete="off" inputmode="url" />
+    <button id="note-save-btn" class="note-save-btn">Save Note</button>
+  </div>
+</div>
 
 <script>
 (function(){
@@ -4211,9 +4266,167 @@
   });
   document.getElementById("tags-manager-add-btn").addEventListener("click", showTagManagerCreateRow);
 
+  /* ==================== NOTES TAB ==================== */
+  let notes = loadArr("dl_notes");
+  let editingNoteId = null;
+  let noteDeleteArmed = false;
+
+  function fmtNoteDate(ts){
+    if(!ts) return "";
+    const diff = Date.now() - ts;
+    const mins = Math.floor(diff / 60000);
+    if(mins < 1) return "just now";
+    if(mins < 60) return mins + "m ago";
+    const hours = Math.floor(mins / 60);
+    if(hours < 24) return hours + "h ago";
+    const days = Math.floor(hours / 24);
+    if(days < 7) return days + "d ago";
+    const d = new Date(ts);
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }
+
+  function normalizeNoteLink(url){
+    if(!url) return "";
+    return /^https?:\/\//i.test(url) ? url : "https://" + url;
+  }
+
+  function renderNotes(){
+    const searchEl = document.getElementById("notes-search");
+    const q = (searchEl ? searchEl.value : "").toLowerCase().trim();
+    const listEl = document.getElementById("notes-list");
+    if(!listEl) return;
+
+    let filtered = q ? notes.filter(function(n){
+      return (n.title||"").toLowerCase().includes(q) ||
+             (n.highlight||"").toLowerCase().includes(q) ||
+             (n.description||"").toLowerCase().includes(q) ||
+             (n.link||"").toLowerCase().includes(q);
+    }) : notes.slice();
+
+    filtered.sort(function(a, b){ return (b.updatedAt||0) - (a.updatedAt||0); });
+
+    listEl.innerHTML = "";
+    if(filtered.length === 0){
+      listEl.innerHTML = '<div class="empty-state">' +
+        (q ? 'No notes match "' + escapeHtml(q) + '"' : 'No notes yet.<br>Tap + New to add one.') + '</div>';
+      return;
+    }
+
+    filtered.forEach(function(note){
+      const card = document.createElement("div");
+      card.className = "note-card";
+
+      const chipHtml = note.highlight
+        ? '<span class="note-highlight-chip">' + escapeHtml(note.highlight) + '</span>'
+        : '';
+      const descHtml = note.description
+        ? '<div class="note-desc">' + escapeHtml(note.description) + '</div>'
+        : '';
+      const normalized = normalizeNoteLink(note.link);
+      const domainStr = note.link ? normalized.replace(/^https?:\/\//i, "").split(/[/?#]/)[0] : "";
+      const linkHtml = note.link
+        ? '<a class="note-link" href="' + escapeHtml(normalized) + '" target="_blank" rel="noopener noreferrer">🔗 ' + escapeHtml(domainStr) + '</a>'
+        : '';
+      const timeStr = fmtNoteDate(note.updatedAt || note.createdAt);
+
+      card.innerHTML =
+        '<div class="note-card-header">' +
+          '<div class="note-title">' + escapeHtml(note.title || "Untitled") + '</div>' +
+          chipHtml +
+        '</div>' +
+        descHtml +
+        '<div class="note-card-footer">' +
+          linkHtml +
+          '<span class="note-time">' + escapeHtml(timeStr) + '</span>' +
+        '</div>';
+
+      card.addEventListener("click", function(e){
+        if(e.target.closest("a")) return;
+        openNoteEditor(note.id);
+      });
+      listEl.appendChild(card);
+    });
+  }
+
+  function openNoteEditor(noteId){
+    editingNoteId = noteId || null;
+    const note = noteId ? notes.find(function(n){ return n.id === noteId; }) : null;
+    const noteDeleteBtn = document.getElementById("note-delete-btn");
+
+    document.getElementById("note-sheet-title").textContent = noteId ? "Edit Note" : "New Note";
+    document.getElementById("note-title-input").value = note ? (note.title || "") : "";
+    document.getElementById("note-highlight-input").value = note ? (note.highlight || "") : "";
+    document.getElementById("note-desc-input").value = note ? (note.description || "") : "";
+    document.getElementById("note-link-input").value = note ? (note.link || "") : "";
+    noteDeleteBtn.style.display = noteId ? "" : "none";
+    noteDeleteArmed = false;
+    noteDeleteBtn.textContent = "🗑";
+    noteDeleteBtn.style.width = "";
+    noteDeleteBtn.style.padding = "";
+
+    document.getElementById("note-overlay").classList.add("open");
+    setTimeout(function(){ document.getElementById("note-title-input").focus(); }, 80);
+  }
+
+  document.getElementById("notes-new-btn").addEventListener("click", function(){ openNoteEditor(null); });
+
+  document.getElementById("note-sheet-close").addEventListener("click", function(){
+    document.getElementById("note-overlay").classList.remove("open");
+  });
+  document.getElementById("note-overlay").addEventListener("click", function(e){
+    if(e.target === document.getElementById("note-overlay")){
+      document.getElementById("note-overlay").classList.remove("open");
+    }
+  });
+
+  document.getElementById("note-save-btn").addEventListener("click", function(){
+    const title = document.getElementById("note-title-input").value.trim();
+    const highlight = document.getElementById("note-highlight-input").value.trim();
+    const description = document.getElementById("note-desc-input").value.trim();
+    const link = document.getElementById("note-link-input").value.trim();
+    if(!title && !description) return;
+    const now = Date.now();
+    if(editingNoteId){
+      const idx = notes.findIndex(function(n){ return n.id === editingNoteId; });
+      if(idx > -1){
+        notes[idx] = { id: editingNoteId, title: title, highlight: highlight, description: description, link: link, createdAt: notes[idx].createdAt || now, updatedAt: now };
+      }
+    } else {
+      notes.push({ id: uid(), title: title, highlight: highlight, description: description, link: link, createdAt: now, updatedAt: now });
+    }
+    save("dl_notes", notes);
+    document.getElementById("note-overlay").classList.remove("open");
+    renderNotes();
+  });
+
+  document.getElementById("note-delete-btn").addEventListener("click", function(){
+    if(!editingNoteId) return;
+    const noteDeleteBtn = document.getElementById("note-delete-btn");
+    if(!noteDeleteArmed){
+      noteDeleteArmed = true;
+      noteDeleteBtn.textContent = "Sure?";
+      noteDeleteBtn.style.width = "auto";
+      noteDeleteBtn.style.padding = "0 10px";
+      setTimeout(function(){
+        noteDeleteArmed = false;
+        noteDeleteBtn.textContent = "🗑";
+        noteDeleteBtn.style.width = "";
+        noteDeleteBtn.style.padding = "";
+      }, 2500);
+      return;
+    }
+    const idx = notes.findIndex(function(n){ return n.id === editingNoteId; });
+    if(idx > -1) notes.splice(idx, 1);
+    save("dl_notes", notes);
+    document.getElementById("note-overlay").classList.remove("open");
+    renderNotes();
+  });
+
+  document.getElementById("notes-search").addEventListener("input", renderNotes);
+
   /* ---------- nav switching ---------- */
   const navBtns = document.querySelectorAll(".nav-btn");
-  const views = { schedule: document.getElementById("view-schedule"), workout: document.getElementById("view-workout"), history: document.getElementById("view-history") };
+  const views = { schedule: document.getElementById("view-schedule"), workout: document.getElementById("view-workout"), history: document.getElementById("view-history"), notes: document.getElementById("view-notes") };
   navBtns.forEach(function(btn){
     btn.addEventListener("click", function(){
       navBtns.forEach(function(b){ b.classList.remove("active"); });
@@ -4221,6 +4434,7 @@
       Object.keys(views).forEach(function(k){ views[k].classList.remove("active"); });
       views[btn.dataset.target].classList.add("active");
       if(btn.dataset.target === "history") renderHistory();
+      if(btn.dataset.target === "notes") renderNotes();
     });
   });
 
