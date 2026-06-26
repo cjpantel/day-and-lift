@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Catering &amp; Events – Awesomedog</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">🌭</span>
+        <div>
+          <h1>Awesomedog</h1>
+          <p class="tagline">Winnipeg's Favourite Hot Dog Cart Since 1994</p>
+        </div>
+      </div>
+      <nav>
+        <a href="index.html">Home</a>
+        <a href="catering.html" class="active">Catering &amp; Events</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="page-hero">
+    <div class="container">
+      <h2>Catering &amp; Group Bookings</h2>
+      <p>Bring Winnipeg's favourite hot dog cart to your next event. We make it easy — and delicious.</p>
+    </div>
+  </section>
+
+  <section class="catering-info">
+    <div class="container">
+      <div class="info-grid">
+        <div class="info-card">
+          <div class="info-icon">💼</div>
+          <h3>Employee Events</h3>
+          <p>Show your team some appreciation with a hot dog lunch or appreciation day. We handle the food so you can focus on your people.</p>
+        </div>
+        <div class="info-card">
+          <div class="info-icon">🤝</div>
+          <h3>Union Events</h3>
+          <p>Rally days, membership meetings, appreciation events — we're proud to serve the workers of Winnipeg.</p>
+        </div>
+        <div class="info-card">
+          <div class="info-icon">💍</div>
+          <h3>Weddings</h3>
+          <p>A late-night hot dog station at your wedding? Your guests will be talking about it for years. Truly unforgettable.</p>
+        </div>
+        <div class="info-card">
+          <div class="info-icon">🏒</div>
+          <h3>Sport Tournaments</h3>
+          <p>From hockey tournaments to summer softball leagues, we fuel athletes and fans alike. Convenient, fast, and crowd-pleasing.</p>
+        </div>
+      </div>
+
+      <div class="pricing-callout">
+        <h3>Event bookings start at <span class="price">$1,000</span></h3>
+        <p>Pricing depends on group size, duration, and location. Fill out the form below and we'll get back to you with a custom quote.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="booking-form-section">
+    <div class="container">
+      <h2>Request a Quote</h2>
+      <p class="form-intro">Tell us about your event and we'll be in touch within 1–2 business days.</p>
+
+      <form class="booking-form" id="bookingForm" onsubmit="handleSubmit(event)">
+
+        <fieldset>
+          <legend>Your Contact Info</legend>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="name">Full Name <span class="required">*</span></label>
+              <input type="text" id="name" name="name" required placeholder="Jane Smith" />
+            </div>
+            <div class="form-group">
+              <label for="email">Email Address <span class="required">*</span></label>
+              <input type="email" id="email" name="email" required placeholder="jane@example.com" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="phone">Phone Number</label>
+              <input type="tel" id="phone" name="phone" placeholder="204-555-0100" />
+            </div>
+            <div class="form-group">
+              <label for="organization">Organization / Company</label>
+              <input type="text" id="organization" name="organization" placeholder="Acme Corp" />
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Event Details</legend>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="event-type">Type of Event <span class="required">*</span></label>
+              <select id="event-type" name="event-type" required>
+                <option value="" disabled selected>Select event type</option>
+                <option value="employee">Employee Event</option>
+                <option value="union">Union Event</option>
+                <option value="wedding">Wedding</option>
+                <option value="sport">Sport Tournament</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="guests">Estimated Number of Guests <span class="required">*</span></label>
+              <input type="number" id="guests" name="guests" required min="1" placeholder="e.g. 150" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="event-date">Event Date <span class="required">*</span></label>
+              <input type="date" id="event-date" name="event-date" required />
+            </div>
+            <div class="form-group">
+              <label for="event-location">Event Location / Venue</label>
+              <input type="text" id="event-location" name="event-location" placeholder="123 Main St, Winnipeg, MB" />
+            </div>
+          </div>
+          <div class="form-group full-width">
+            <label for="message">Additional Details or Questions</label>
+            <textarea id="message" name="message" rows="5" placeholder="Tell us anything else we should know about your event..."></textarea>
+          </div>
+        </fieldset>
+
+        <div class="form-footer">
+          <p class="form-note">Bookings start at <strong>$1,000</strong>. We'll confirm availability and send a custom quote after reviewing your request.</p>
+          <button type="submit" class="btn">Send Booking Request</button>
+        </div>
+
+      </form>
+
+      <div class="form-success" id="formSuccess" style="display:none;">
+        <div class="success-icon">✅</div>
+        <h3>Request Received!</h3>
+        <p>Thanks for reaching out. We'll review your event details and get back to you within 1–2 business days.</p>
+        <a href="index.html" class="btn">Back to Home</a>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <p><strong>Awesomedog</strong> · Corner of Carlton &amp; Portage, Winnipeg, MB</p>
+      <p>Family-owned since 1994 · <a href="catering.html">Catering &amp; Events</a></p>
+    </div>
+  </footer>
+
+  <script>
+    function handleSubmit(e) {
+      e.preventDefault();
+      document.getElementById('bookingForm').style.display = 'none';
+      document.getElementById('formSuccess').style.display = 'block';
+      window.scrollTo({ top: document.getElementById('formSuccess').offsetTop - 80, behavior: 'smooth' });
+    }
+  </script>
+
+</body>
+</html>
