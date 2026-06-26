@@ -873,6 +873,21 @@
       </div>
       <button id="settings-refresh-btn" style="border:none;background:var(--accent-schedule);color:#fff;font-weight:800;font-size:13px;border-radius:10px;padding:8px 14px;cursor:pointer;flex-shrink:0;">Refresh</button>
     </div>
+    <div class="settings-row">
+      <div class="settings-row-label">
+        <div class="settings-row-title">Export Data</div>
+        <div class="settings-row-sub">Save all your data as a JSON backup file</div>
+      </div>
+      <button id="settings-export-btn" style="border:none;background:var(--accent-notes);color:#fff;font-weight:800;font-size:13px;border-radius:10px;padding:8px 14px;cursor:pointer;flex-shrink:0;">Export</button>
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-label">
+        <div class="settings-row-title">Import Data</div>
+        <div class="settings-row-sub">Restore from a previously exported backup</div>
+      </div>
+      <button id="settings-import-btn" style="border:none;background:var(--ink-soft);color:#fff;font-weight:800;font-size:13px;border-radius:10px;padding:8px 14px;cursor:pointer;flex-shrink:0;">Import</button>
+      <input type="file" id="settings-import-file" accept=".json" style="display:none;">
+    </div>
     <div style="text-align:center;margin-top:6px;padding-top:10px;border-top:1px solid var(--line);">
       <span id="settings-version" style="font-size:12px;color:var(--ink-faint);font-weight:600;"></span>
     </div>
@@ -3438,6 +3453,52 @@
   document.getElementById("settings-refresh-btn").addEventListener("click", function(){
     location.reload();
   });
+
+  const DATA_KEYS = ["dl_workouts","dl_schedule","dl_settings","dl_library","dl_history","dl_tags","dl_notes","dl_timer"];
+
+  document.getElementById("settings-export-btn").addEventListener("click", function(){
+    const data = { _version: 1, _exportedAt: new Date().toISOString() };
+    DATA_KEYS.forEach(function(k){
+      const raw = localStorage.getItem(k);
+      if(raw !== null){ try{ data[k] = JSON.parse(raw); } catch(e){ data[k] = raw; } }
+    });
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "day-and-lift-" + new Date().toISOString().slice(0, 10) + ".json";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
+  });
+
+  const importFileInput = document.getElementById("settings-import-file");
+  document.getElementById("settings-import-btn").addEventListener("click", function(){
+    importFileInput.value = "";
+    importFileInput.click();
+  });
+  importFileInput.addEventListener("change", function(){
+    const file = importFileInput.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e){
+      try{
+        const data = JSON.parse(e.target.result);
+        if(typeof data !== "object" || data === null) throw new Error("Not a valid backup file");
+        const found = DATA_KEYS.filter(function(k){ return k in data; });
+        if(!found.length) throw new Error("No Day & Lift data found in this file");
+        if(!confirm("Import will replace ALL current data with the backup. This cannot be undone. Continue?")) return;
+        found.forEach(function(k){ localStorage.setItem(k, JSON.stringify(data[k])); });
+        alert("Import successful! The app will now reload.");
+        location.reload();
+      } catch(err){
+        alert("Import failed: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+  });
+
   settingsWakeupSel.addEventListener("change", function(){
     settings.defaultWakeup = settingsWakeupSel.value || null;
     save("dl_settings", settings);
